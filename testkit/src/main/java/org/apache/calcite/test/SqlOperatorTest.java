@@ -5173,6 +5173,26 @@ public class SqlOperatorTest {
     f.checkString("to_base64(x'61')", "YQ==", "VARCHAR NOT NULL");
   }
 
+  @Test void testBase64() {
+    final SqlOperatorFixture f = fixture().withLibrary(SqlLibrary.HIVE);
+    f.setFor(SqlLibraryOperators.BASE64);
+    f.checkString("base64(cast('a' as binary))", "YQ==", "VARCHAR NOT NULL");
+    f.checkString("base64('')", "", "VARCHAR NOT NULL");
+    f.checkString("base64('This is a test String.')",
+        "VGhpcyBpcyBhIHRlc3QgU3RyaW5nLg==",
+        "VARCHAR NOT NULL");
+  }
+
+  @Test void testUnBase64() {
+    final SqlOperatorFixture f = fixture().withLibrary(SqlLibrary.HIVE);
+    f.setFor(SqlLibraryOperators.UN_BASE64);
+    f.checkString("unbase64('VGhpcyBpcyBhIHRlc3QgU3RyaW5nLg==')",
+              "This is a test String.",
+              "VARCHAR");
+    f.checkString("unbase64('YQ==')", "a", "VARCHAR");
+    f.checkString("unbase64('')", "", "VARCHAR");
+  }
+
   @Test void testToChar() {
     final SqlOperatorFixture f0 = fixture().setFor(SqlLibraryOperators.TO_CHAR);
     final Consumer<SqlOperatorFixture> consumer = f -> {

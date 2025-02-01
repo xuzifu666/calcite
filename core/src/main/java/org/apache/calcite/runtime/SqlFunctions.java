@@ -330,6 +330,28 @@ public class SqlFunctions {
     }
   }
 
+  /** SQL BASE64(string) function for string. */
+  public static String base64(String string) {
+    return toBase64_(string.getBytes(UTF_8));
+  }
+
+  /** SQL BASE64(string) function for bytestring. */
+  public static String base64(ByteString byteString) {
+    byte[] bytes = byteString.getBytes();
+    return toBase64_(bytes);
+  }
+
+  /** SQL UNBASE64(string) function. */
+  public static @Nullable String unBase64(String base64) {
+    try {
+      base64 = FROM_BASE64_REGEXP.matcher(base64).replaceAll("");
+      //CHECKSTYLE: IGNORE 1
+      return new String(Base64.getDecoder().decode(base64), UTF_8);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
   /** SQL TO_BASE32(string) function. */
   public static String toBase32(String string) {
     return toBase32_(string.getBytes(UTF_8));
