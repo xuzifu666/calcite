@@ -6171,6 +6171,368 @@ class RelToSqlConverterTest {
         .withCalcite().ok(expectedCalciteX);
   }
 
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-5723">[CALCITE-5723]
+   * Oracle dialect generates SQL that cannot be recognized by lower version
+   * Oracle Server(<12) when unparsing OffsetFetch</a>. */
+  @Test void testFetchOffsetOracle() {
+    String query = "SELECT \"department_id\" FROM \"employee\" LIMIT 2 OFFSET 1";
+    String expected = "SELECT \"department_id\"\n"
+        + "FROM \"foodmart\".\"employee\"\n"
+        + "OFFSET 1 ROWS\n"
+        + "FETCH NEXT 2 ROWS ONLY";
+    sql(query)
+        .withOracle().ok(expected)
+        .withOracle(19).ok(expected)
+        .withOracle(11).throws_("Lower Oracle version(<12) doesn't support offset/fetch syntax!");
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6482">[CALCITE-6482]
+   * Oracle dialect convert boolean literal when version < 23</a>. */
+  @Test void testBoolLiteralOracle() {
+    String query = "SELECT \"e1\".\"department_id\" "
+        + "FROM \"employee\" \"e1\""
+        + "LEFT JOIN \"employee\" \"e2\""
+        + "ON TRUE";
+    String expectedVersionLow = "SELECT \"employee\".\"department_id\"\n"
+        + "FROM \"foodmart\".\"employee\"\n"
+        + "LEFT JOIN \"foodmart\".\"employee\" \"employee0\" "
+        + "ON (1 = 1)";
+    String expectedVersionHigh = "SELECT \"employee\".\"department_id\"\n"
+        + "FROM \"foodmart\".\"employee\"\n"
+        + "LEFT JOIN \"foodmart\".\"employee\" \"employee0\" "
+        + "ON TRUE";
+    sql(query)
+        .withOracle(23).ok(expectedVersionHigh)
+        .withOracle(11).ok(expectedVersionLow);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6819">[CALCITE-6819]
+   * MSSQL doesn't support TRUE/FALSE keywords in its Join predicate</a>. */
+  @Test void testJoinBoolLiteralMSSQL() {
+    final String queryTrue = "SELECT \"hire_date\", \"department_description\" FROM \"employee\" "
+        + "LEFT JOIN \"department\" ON TRUE";
+    final String mssqlExpected1 = "SELECT [employee].[hire_date],"
+        + " [department].[department_description]\nFROM [foodmart].[employee]\nLEFT JOIN"
+        + " [foodmart].[department] ON (1 = 1)";
+    sql(queryTrue)
+        .dialect(MssqlSqlDialect.DEFAULT).ok(mssqlExpected1);
+
+    final String queryFalse = "SELECT \"hire_date\", \"department_description\" FROM \"employee\" "
+        + "LEFT JOIN \"department\" ON False";
+    final String mssqlExpected2 = "SELECT [employee].[hire_date],"
+        + " [department].[department_description]\nFROM [foodmart].[employee]\nLEFT JOIN"
+        + " [foodmart].[department] ON (1 = 0)";
+    sql(queryFalse)
+        .dialect(MssqlSqlDialect.DEFAULT).ok(mssqlExpected2);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6480">[CALCITE-6480]
+   * OracleDialect does not support CASE WHEN returning boolean</a>. */
+  @Test void testBooleanCaseWhenOracle() {
+    String query0 = "SELECT \"e1\".\"department_id\" "
+        + "FROM \"employee\" \"e1\""
+        + "LEFT JOIN \"employee\" \"e2\""
+        + "ON CASE WHEN \"e2\".\"employee_id\" = 'a' "
+        + "THEN \"e1\".\"department_id\" > 10 "
+        + "WHEN \"e2\".\"employee_id\" = 'b' "
+        + "THEN \"e1\".\"department_id\" > 20 "
+        + "ELSE \"e2\".\"employee_id\" = 'c' END";
+    String expectedVersionLow0 = "SELECT \"employee\".\"department_id\"\n"
+        + "FROM \"foodmart\".\"employee\"\n"
+        + "LEFT JOIN \"foodmart\".\"employee\" \"employee0\" "
+        + "ON CASE WHEN \"employee0\".\"employee_id\" = 'a' "
+        + "THEN CASE WHEN \"employee\".\"department_id\" > 10 "
+        + "THEN 1 ELSE 0 END WHEN \"employee0\".\"employee_id\" = 'b' "
+        + "THEN CASE WHEN \"employee\".\"department_id\" > 20 "
+        + "THEN 1 ELSE 0 END ELSE CASE WHEN \"employee0\".\"employee_id\" = 'c' "
+        + "THEN 1 ELSE 0 END END = 1";
+    String expectedVersionHigh0 = "SELECT \"employee\".\"department_id\"\n"
+        + "FROM \"foodmart\".\"employee\"\n"
+        + "LEFT JOIN \"foodmart\".\"employee\" \"employee0\" "
+        + "ON CASE WHEN \"employee0\".\"employee_id\" = 'a' "
+        + "THEN \"employee\".\"department_id\" > 10 "
+        + "WHEN \"employee0\".\"employee_id\" = 'b' "
+        + "THEN \"employee\".\"department_id\" > 20"
+        + " ELSE \"employee0\".\"employee_id\" = 'c' END";
+
+    String query1 = "SELECT \"department_id\" "
+        + "FROM \"employee\""
+        + "WHERE CASE \"employee_id\" "
+        + "WHEN 'a' THEN \"department_id\" > 10 "
+        + "WHEN 'b' THEN \"department_id\" > 20 "
+        + "ELSE TRUE END";
+    String expectedVersionLow1 = "SELECT \"department_id\"\n"
+        + "FROM \"foodmart\".\"employee\"\n"
+        + "WHERE CASE WHEN \"employee_id\" = 'a' THEN CASE WHEN \"department_id\" > 10 THEN 1 ELSE 0 END "
+        + "WHEN \"employee_id\" = 'b' THEN CASE WHEN \"department_id\" > 20 THEN 1 ELSE 0 END ELSE "
+        + "CASE WHEN (1 = 1) THEN 1 ELSE 0 END END = 1";
+    String expectedVersionHigh1 = "SELECT \"department_id\"\n"
+        + "FROM \"foodmart\".\"employee\"\n"
+        + "WHERE CASE WHEN \"employee_id\" = 'a' THEN \"department_id\" > 10 "
+        + "WHEN \"employee_id\" = 'b' THEN \"department_id\" > 20 "
+        + "ELSE TRUE END";
+
+    sql(query0)
+        .withOracle(23).ok(expectedVersionHigh0)
+        .withOracle(11).ok(expectedVersionLow0);
+
+    sql(query1)
+        .withOracle(23).ok(expectedVersionHigh1)
+        .withOracle(11).ok(expectedVersionLow1);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-5265">[CALCITE-5265]
+   * JDBC adapter sometimes adds unnecessary parentheses around SELECT in INSERT</a>. */
+  @Test void testInsertSelect() {
+    final String sql = "insert into \"DEPT\" select * from \"DEPT\"";
+    final String expected = ""
+        + "INSERT INTO \"SCOTT\".\"DEPT\" (\"DEPTNO\", \"DNAME\", \"LOC\")\n"
+        + "SELECT *\n"
+        + "FROM \"SCOTT\".\"DEPT\"";
+    sql(sql)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected);
+  }
+
+  @Test void testMerge() {
+    final String sql1 = "merge into \"DEPT\" as \"t\"\n"
+        + "using \"DEPT\" as \"s\"\n"
+        + "on \"t\".\"DEPTNO\" = \"s\".\"DEPTNO\"\n"
+        + "when matched then\n"
+        + "update set \"DNAME\" = \"s\".\"DNAME\"\n"
+        + "when not matched then\n"
+        + "insert (DEPTNO, DNAME, LOC)\n"
+        + "values (\"s\".\"DEPTNO\" + 1, lower(\"s\".\"DNAME\"), upper(\"s\".\"LOC\"))";
+    final String expected1 = "MERGE INTO \"SCOTT\".\"DEPT\" AS \"DEPT0\"\n"
+        + "USING \"SCOTT\".\"DEPT\"\n"
+        + "ON \"DEPT\".\"DEPTNO\" = \"DEPT0\".\"DEPTNO\"\n"
+        + "WHEN MATCHED THEN UPDATE SET \"DNAME\" = \"DEPT\".\"DNAME\"\n"
+        + "WHEN NOT MATCHED THEN INSERT (\"DEPTNO\", \"DNAME\", \"LOC\") "
+        + "VALUES CAST(\"DEPT\".\"DEPTNO\" + 1 AS TINYINT),\n"
+        + "LOWER(\"DEPT\".\"DNAME\"),\n"
+        + "UPPER(\"DEPT\".\"LOC\")";
+    sql(sql1)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected1);
+
+    // without insert columns
+    final String sql2 = "merge into \"DEPT\" as \"t\"\n"
+        + "using \"DEPT\" as \"s\"\n"
+        + "on \"t\".\"DEPTNO\" = \"s\".\"DEPTNO\"\n"
+        + "when matched then\n"
+        + "update set \"DNAME\" = \"s\".\"DNAME\"\n"
+        + "when not matched then insert\n"
+        + "values (\"s\".\"DEPTNO\" + 1, lower(\"s\".\"DNAME\"), upper(\"s\".\"LOC\"))";
+    final String expected2 = expected1;
+    sql(sql2)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected2);
+
+    // reorder insert columns
+    final String sql3 = "merge into \"DEPT\" as \"t\"\n"
+        + "using \"DEPT\" as \"s\"\n"
+        + "on \"t\".\"DEPTNO\" = \"s\".\"DEPTNO\"\n"
+        + "when matched then\n"
+        + "update set \"DNAME\" = \"s\".\"DNAME\"\n"
+        + "when not matched then\n"
+        + "insert (DEPTNO, LOC, DNAME)\n"
+        + "values (\"s\".\"DEPTNO\" + 1, lower(\"s\".\"DNAME\"), 'abc')";
+    final String expected3 = "MERGE INTO \"SCOTT\".\"DEPT\" AS \"DEPT0\"\n"
+        + "USING \"SCOTT\".\"DEPT\"\n"
+        + "ON \"DEPT\".\"DEPTNO\" = \"DEPT0\".\"DEPTNO\"\n"
+        + "WHEN MATCHED THEN UPDATE SET \"DNAME\" = \"DEPT\".\"DNAME\"\n"
+        + "WHEN NOT MATCHED THEN INSERT (\"DEPTNO\", \"DNAME\", \"LOC\") "
+        + "VALUES CAST(\"DEPT\".\"DEPTNO\" + 1 AS TINYINT),\n"
+        + "'abc',\n"
+        + "CAST(LOWER(\"DEPT\".\"DNAME\") AS VARCHAR(13) CHARACTER SET \"ISO-8859-1\")";
+    sql(sql3)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected3);
+
+    // without WHEN NOT MATCHED THEN
+    final String sql4 = "merge into \"DEPT\" as \"t\"\n"
+        + "using \"DEPT\" as \"s\"\n"
+        + "on \"t\".\"DEPTNO\" = \"s\".\"DEPTNO\"\n"
+        + "when matched then\n"
+        + "update set \"DNAME\" = \"s\".\"DNAME\"";
+    final String expected4 = "MERGE INTO \"SCOTT\".\"DEPT\" AS \"DEPT0\"\n"
+        + "USING \"SCOTT\".\"DEPT\"\n"
+        + "ON \"DEPT\".\"DEPTNO\" = \"DEPT0\".\"DEPTNO\"\n"
+        + "WHEN MATCHED THEN UPDATE SET \"DNAME\" = \"DEPT\".\"DNAME\"";
+    sql(sql4)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected4);
+
+    // without WHEN MATCHED THEN
+    final String sql5 = "merge into \"DEPT\" as \"t\"\n"
+        + "using \"DEPT\" as \"s\"\n"
+        + "on \"t\".\"DEPTNO\" = \"s\".\"DEPTNO\"\n"
+        + "when not matched then\n"
+        + "insert (DEPTNO, DNAME, LOC)\n"
+        + "values (\"s\".\"DEPTNO\" + 1, lower(\"s\".\"DNAME\"), upper(\"s\".\"LOC\"))";
+    final String expected5 = "MERGE INTO \"SCOTT\".\"DEPT\" AS \"DEPT0\"\n"
+        + "USING \"SCOTT\".\"DEPT\"\n"
+        + "ON \"DEPT\".\"DEPTNO\" = \"DEPT0\".\"DEPTNO\"\n"
+        + "WHEN NOT MATCHED THEN INSERT (\"DEPTNO\", \"DNAME\", \"LOC\") "
+        + "VALUES CAST(\"DEPT\".\"DEPTNO\" + 1 AS TINYINT),\n"
+        + "LOWER(\"DEPT\".\"DNAME\"),\n"
+        + "UPPER(\"DEPT\".\"LOC\")";
+    sql(sql5)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected5);
+
+    // using query
+    final String sql6 = "merge into \"DEPT\" as \"t\"\n"
+        + "using (select * from \"DEPT\" where \"DEPTNO\" <> 5) as \"s\"\n"
+        + "on \"t\".\"DEPTNO\" = \"s\".\"DEPTNO\"\n"
+        + "when not matched then\n"
+        + "insert (DEPTNO, DNAME, LOC)\n"
+        + "values (\"s\".\"DEPTNO\" + 1, lower(\"s\".\"DNAME\"), upper(\"s\".\"LOC\"))";
+    final String expected6 = "MERGE INTO \"SCOTT\".\"DEPT\" AS \"DEPT0\"\n"
+        + "USING (SELECT *\n"
+        + "FROM \"SCOTT\".\"DEPT\"\n"
+        + "WHERE CAST(\"DEPTNO\" AS INTEGER) <> 5) AS \"t0\"\n"
+        + "ON \"t0\".\"DEPTNO\" = \"DEPT0\".\"DEPTNO\"\n"
+        + "WHEN NOT MATCHED THEN INSERT (\"DEPTNO\", \"DNAME\", \"LOC\") "
+        + "VALUES CAST(\"t0\".\"DEPTNO\" + 1 AS TINYINT),\n"
+        + "LOWER(\"t0\".\"DNAME\"),\n"
+        + "UPPER(\"t0\".\"LOC\")";
+    sql(sql6)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected6);
+
+    final String sql7 = "merge into \"DEPT\" as \"t\"\n"
+        + "using (select * from (values (1, 'name', 'loc'))) as \"s\"(\"a\", \"b\", \"c\")\n"
+        + "on \"t\".\"DEPTNO\" = \"s\".\"a\"\n"
+        + "when matched then\n"
+        + "update set \"DNAME\" = 'abc'"
+        + "when not matched then\n"
+        + "insert (DEPTNO, DNAME, LOC)\n"
+        + "values (\"s\".\"a\" + 1, lower(\"s\".\"b\"), upper(\"s\".\"c\"))";
+    final String expected7 = "MERGE INTO \"SCOTT\".\"DEPT\" AS \"t1\"\n"
+        + "USING (SELECT *\n"
+        + "FROM (VALUES (1, 'name', 'loc')) "
+        + "AS \"t\" (\"EXPR$0\", \"EXPR$1\", \"EXPR$2\")) AS \"t0\"\n"
+        + "ON \"t0\".\"EXPR$0\" = \"t1\".\"DEPTNO0\"\n"
+        + "WHEN MATCHED THEN UPDATE SET \"DNAME\" = 'abc'\n"
+        + "WHEN NOT MATCHED THEN INSERT (\"DEPTNO\", \"DNAME\", \"LOC\") "
+        + "VALUES CAST(\"t0\".\"EXPR$0\" + 1 AS TINYINT),\n"
+        + "CAST(LOWER(\"t0\".\"EXPR$1\") AS VARCHAR(14) CHARACTER SET \"ISO-8859-1\"),\n"
+        + "CAST(UPPER(\"t0\".\"EXPR$2\") AS VARCHAR(13) CHARACTER SET \"ISO-8859-1\")";
+    sql(sql7)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected7);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-3679">[CALCITE-3679]
+   * Allow lambda expressions in SQL queries</a>. */
+  @Test void testHigherOrderFunction() {
+    final String sql1 = "select higher_order_function(1, (x, y) -> char_length(x) + 1)";
+    final String expected1 = "SELECT HIGHER_ORDER_FUNCTION("
+        + "1, (\"X\", \"Y\") -> CHAR_LENGTH(\"X\") + 1)\nFROM (VALUES (0)) AS \"t\" (\"ZERO\")";
+    sql(sql1).ok(expected1);
+
+    final String sql2 = "select higher_order_function2(1, () -> abs(-1))";
+    final String expected2 = "SELECT HIGHER_ORDER_FUNCTION2("
+        + "1, () -> ABS(-1))\nFROM (VALUES (0)) AS \"t\" (\"ZERO\")";
+    sql(sql2).ok(expected2);
+
+    final String sql3 = "select \"department_id\", "
+        + "higher_order_function(1, (department_id, y) -> department_id + 1) from \"employee\"";
+    final String expected3 = "SELECT \"department_id\", HIGHER_ORDER_FUNCTION(1, "
+        + "(\"DEPARTMENT_ID\", \"Y\") -> CAST(\"DEPARTMENT_ID\" AS INTEGER) + 1)\n"
+        + "FROM \"foodmart\".\"employee\"";
+    sql(sql3).ok(expected3);
+
+    final String sql4 = "select higher_order_function2(1, () -> cast(null as integer))";
+    final String expected4 = "SELECT HIGHER_ORDER_FUNCTION2("
+        + "1, () -> NULL)\nFROM (VALUES (0)) AS \"t\" (\"ZERO\")";
+    sql(sql4).ok(expected4);
+
+    final String sql5 = "select \"employee_id\", "
+        + "higher_order_function("
+        + "\"employee_id\", (product_id, employee_id) -> char_length(product_id) + employee_id"
+        + ") from \"employee\"";
+    final String expected5 = "SELECT \"employee_id\", HIGHER_ORDER_FUNCTION("
+        + "\"employee_id\", (\"PRODUCT_ID\", \"EMPLOYEE_ID\") -> "
+        + "CHAR_LENGTH(\"PRODUCT_ID\") + \"EMPLOYEE_ID\")\n"
+        + "FROM \"foodmart\".\"employee\"";
+    sql(sql5).ok(expected5);
+
+    final String sql6 = "select higher_order_function(1, (y, x) -> x + char_length(y) + 1)";
+    final String expected6 = "SELECT HIGHER_ORDER_FUNCTION("
+        + "1, (\"Y\", \"X\") -> \"X\" + CHAR_LENGTH(\"Y\") + 1)\n"
+        + "FROM (VALUES (0)) AS \"t\" (\"ZERO\")";
+    sql(sql6).ok(expected6);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6116">[CALCITE-6116]
+   * Add EXISTS function (enabled in Spark library)</a>. */
+  @Test void testExistsFunctionInSpark() {
+    final String sql = "select \"EXISTS\"(array[1,2,3], x -> x > 2)";
+    final String expected = "SELECT EXISTS(ARRAY[1, 2, 3], \"X\" -> \"X\" > 2)\n"
+        + "FROM (VALUES (0)) AS \"t\" (\"ZERO\")";
+    sql(sql)
+        .withLibrary(SqlLibrary.SPARK)
+        .ok(expected);
+
+    final String sql2 = "select \"EXISTS\"(array[1,2,3], (x) -> false)";
+    final String expected2 = "SELECT EXISTS(ARRAY[1, 2, 3], \"X\" -> FALSE)\n"
+        + "FROM (VALUES (0)) AS \"t\" (\"ZERO\")";
+    sql(sql2)
+        .withLibrary(SqlLibrary.SPARK)
+        .ok(expected2);
+
+    // empty array
+    final String sql3 = "select \"EXISTS\"(array(), (x) -> false)";
+    final String expected3 = "SELECT EXISTS(ARRAY(), \"X\" -> FALSE)\n"
+        + "FROM (VALUES (0)) AS \"t\" (\"ZERO\")";
+    sql(sql3)
+        .withLibrary(SqlLibrary.SPARK)
+        .ok(expected3);
+
+    final String sql4 = "select \"EXISTS\"('string', (x) -> false)";
+    final String error4 = "org.apache.calcite.runtime.CalciteContextException: "
+        + "From line 1, column 8 to line 1, column 39: "
+        + "Cannot apply 'EXISTS' to arguments of type "
+        + "'EXISTS(<CHAR(6)>, <FUNCTION(ANY) -> BOOLEAN>)'. "
+        + "Supported form(s): EXISTS(<ARRAY>, <FUNCTION(ARRAY_ELEMENT_TYPE)->BOOLEAN>)";
+    sql(sql4)
+        .withLibrary(SqlLibrary.SPARK)
+        .throws_(error4);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-5265">[CALCITE-5265]
+   * JDBC adapter sometimes adds unnecessary parentheses around SELECT in INSERT</a>. */
+  @Test void testInsertUnionThenIntersect() {
+    final String sql = ""
+        + "insert into \"DEPT\"\n"
+        + "(select * from \"DEPT\" union select * from \"DEPT\")\n"
+        + "intersect select * from \"DEPT\"";
+    final String expected = ""
+        + "INSERT INTO \"SCOTT\".\"DEPT\" (\"DEPTNO\", \"DNAME\", \"LOC\")\n"
+        + "SELECT *\n"
+        + "FROM (SELECT *\n"
+        + "FROM \"SCOTT\".\"DEPT\"\n"
+        + "UNION\n"
+        + "SELECT *\n"
+        + "FROM \"SCOTT\".\"DEPT\")\n"
+        + "INTERSECT\n"
+        + "SELECT *\n"
+        + "FROM \"SCOTT\".\"DEPT\"";
+    sql(sql)
+        .schema(CalciteAssert.SchemaSpec.JDBC_SCOTT)
+        .ok(expected);
+  }
+
   @Test void testInsertValuesWithDynamicParams() {
     final String sql = "insert into \"DEPT\" values (?,?,?), (?,?,?)";
     final String expected = ""
