@@ -903,16 +903,406 @@ public abstract class SqlLibraryOperators {
           null, OperandTypes.or(OperandTypes.STRING, OperandTypes.BINARY),
           SqlFunctionCategory.STRING);
 
+  /** The "ARRAY_INSERT(array, pos, val)" function (Spark). */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_INSERT =
+      SqlBasicFunction.create(SqlKind.ARRAY_INSERT,
+          SqlLibraryOperators::arrayInsertReturnType,
+          OperandTypes.ARRAY_INSERT);
+
+  /** The "ARRAY_INTERSECT(array1, array2)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_INTERSECT =
+      SqlBasicFunction.create(SqlKind.ARRAY_INTERSECT,
+          ReturnTypes.LEAST_RESTRICTIVE,
+          OperandTypes.and(
+              OperandTypes.NONNULL_NONNULL,
+              OperandTypes.SAME_SAME,
+              OperandTypes.family(SqlTypeFamily.ARRAY, SqlTypeFamily.ARRAY)));
+
+  /** The "ARRAY_JOIN(array, delimiter [, nullText ])" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_JOIN =
+      SqlBasicFunction.create(SqlKind.ARRAY_JOIN,
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.STRING_ARRAY_CHARACTER_OPTIONAL_CHARACTER);
+
+  /** The "ARRAY_LENGTH(array)" function. */
+  @LibraryOperator(libraries = {BIG_QUERY})
+  public static final SqlFunction ARRAY_LENGTH =
+      SqlBasicFunction.create(SqlKind.ARRAY_LENGTH,
+          ReturnTypes.INTEGER_NULLABLE,
+          OperandTypes.ARRAY);
+
+  /** The "ARRAY_MAX(array)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_MAX =
+      SqlBasicFunction.create(SqlKind.ARRAY_MAX,
+          ReturnTypes.TO_COLLECTION_ELEMENT_FORCE_NULLABLE,
+          OperandTypes.ARRAY_NONNULL);
+
+  /** The "ARRAY_MAX(array)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_MIN =
+      SqlBasicFunction.create(SqlKind.ARRAY_MIN,
+          ReturnTypes.TO_COLLECTION_ELEMENT_FORCE_NULLABLE,
+          OperandTypes.ARRAY_NONNULL);
+
+  /** The "ARRAY_POSITION(array, element)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_POSITION =
+      SqlBasicFunction.create(SqlKind.ARRAY_POSITION,
+          ReturnTypes.BIGINT_NULLABLE,
+          OperandTypes.ARRAY_ELEMENT_NONNULL);
+
+  /** The "ARRAY_PREPEND(array, element)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_PREPEND =
+      SqlBasicFunction.create(SqlKind.ARRAY_PREPEND,
+          SqlLibraryOperators::arrayAppendPrependReturnType,
+          OperandTypes.ARRAY_ELEMENT_NONNULL);
+
+  /** The "ARRAY_REMOVE(array, element)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_REMOVE =
+      SqlBasicFunction.create(SqlKind.ARRAY_REMOVE,
+          ReturnTypes.ARG0_NULLABLE,
+          OperandTypes.ARRAY_ELEMENT_NONNULL);
+
+  /** The "ARRAY_REPEAT(element, count)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_REPEAT =
+      SqlBasicFunction.create(SqlKind.ARRAY_REPEAT,
+          ReturnTypes.TO_ARRAY.andThen(SqlTypeTransforms.TO_NULLABLE),
+          OperandTypes.sequence(
+              "ARRAY_REPEAT(ANY, INTEGER)",
+              OperandTypes.ANY, OperandTypes.typeName(SqlTypeName.INTEGER)));
+
+  /** The "ARRAY_REVERSE(array)" function. */
+  @LibraryOperator(libraries = {BIG_QUERY})
+  public static final SqlFunction ARRAY_REVERSE =
+      SqlBasicFunction.create(SqlKind.ARRAY_REVERSE,
+          ReturnTypes.ARG0_NULLABLE,
+          OperandTypes.ARRAY);
+
+  /** The "ARRAY_SIZE(array)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_SIZE =
+      SqlBasicFunction.create(SqlKind.ARRAY_SIZE,
+          ReturnTypes.INTEGER_NULLABLE,
+          OperandTypes.ARRAY);
+
+  /** The "ARRAY_SLICE(array, start, length)" function. */
+  @LibraryOperator(libraries = {HIVE})
+  public static final SqlFunction ARRAY_SLICE =
+      SqlBasicFunction.create(SqlKind.ARRAY_SLICE,
+          ReturnTypes.ARG0_NULLABLE,
+          OperandTypes.sequence(
+              "ARRAY_SLICE(ARRAY, INTEGER, INTEGER)",
+              OperandTypes.ARRAY, OperandTypes.INTEGER, OperandTypes.INTEGER));
+
+  /** The "ARRAY_UNION(array1, array2)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAY_UNION =
+      SqlBasicFunction.create(SqlKind.ARRAY_UNION,
+          ReturnTypes.LEAST_RESTRICTIVE,
+          OperandTypes.and(
+              OperandTypes.SAME_SAME,
+              OperandTypes.family(SqlTypeFamily.ARRAY, SqlTypeFamily.ARRAY)));
+
+  /** The "ARRAY_TO_STRING(array, delimiter [, nullText ])" function. */
+  @LibraryOperator(libraries = {BIG_QUERY})
+  public static final SqlFunction ARRAY_TO_STRING =
+      SqlBasicFunction.create(SqlKind.ARRAY_TO_STRING,
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.STRING_ARRAY_CHARACTER_OPTIONAL_CHARACTER);
+
+  /** The "ARRAYS_OVERLAP(array1, array2)" function (Spark). */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAYS_OVERLAP =
+      SqlBasicFunction.create(SqlKind.ARRAYS_OVERLAP,
+          ReturnTypes.BOOLEAN_NULLABLE.andThen(SqlTypeTransforms.COLLECTION_ELEMENT_TYPE_NULLABLE),
+          OperandTypes.and(
+              OperandTypes.SAME_SAME,
+              OperandTypes.family(SqlTypeFamily.ARRAY, SqlTypeFamily.ARRAY),
+              OperandTypes.NONNULL_NONNULL));
+
+  private static RelDataType deriveTypeArraysZip(SqlOperatorBinding opBinding) {
+    final List<RelDataType> argComponentTypes = new ArrayList<>();
+    for (RelDataType arrayType : opBinding.collectOperandTypes()) {
+      final RelDataType componentType = requireNonNull(arrayType.getComponentType());
+      argComponentTypes.add(componentType);
+    }
+
+    final List<String> indexes = IntStream.range(0, argComponentTypes.size())
+        .mapToObj(i -> String.valueOf(i))
+        .collect(Collectors.toList());
+    final RelDataType structType =
+        opBinding.getTypeFactory().createStructType(argComponentTypes, indexes);
+    return SqlTypeUtil.createArrayType(
+        opBinding.getTypeFactory(),
+        requireNonNull(structType, "inferred value type"),
+        false);
+  }
+
+  /** The "ARRAYS_ZIP(array, ...)" function (Spark). */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction ARRAYS_ZIP =
+      SqlBasicFunction.create(SqlKind.ARRAYS_ZIP,
+          ((SqlReturnTypeInference) SqlLibraryOperators::deriveTypeArraysZip)
+              .andThen(SqlTypeTransforms.TO_NULLABLE),
+          OperandTypes.SAME_VARIADIC);
+
+  /** The "SORT_ARRAY(array)" function (Spark). */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction SORT_ARRAY =
+      SqlBasicFunction.create(SqlKind.SORT_ARRAY,
+          ReturnTypes.ARG0_NULLABLE,
+          OperandTypes.ARRAY.or(OperandTypes.ARRAY_BOOLEAN_LITERAL));
+
+  private static RelDataType deriveTypeMapConcat(SqlOperatorBinding opBinding) {
+    if (opBinding.getOperandCount() == 0) {
+      final RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
+      final RelDataType type = typeFactory.createSqlType(SqlTypeName.VARCHAR);
+      requireNonNull(type, "type");
+      return SqlTypeUtil.createMapType(typeFactory, type, type, true);
+    } else {
+      final List<RelDataType> operandTypes = opBinding.collectOperandTypes();
+      for (RelDataType operandType : operandTypes) {
+        if (!SqlTypeUtil.isMap(operandType)) {
+          throw opBinding.newError(
+              RESOURCE.typesShouldAllBeMap(
+                  opBinding.getOperator().getName(),
+                  operandType.getFullTypeString()));
+        }
+      }
+      return requireNonNull(opBinding.getTypeFactory().leastRestrictive(operandTypes));
+    }
+  }
+
+  /** The "MAP_CONCAT(map [, map]*)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction MAP_CONCAT =
+      SqlBasicFunction.create(SqlKind.MAP_CONCAT,
+          SqlLibraryOperators::deriveTypeMapConcat,
+          OperandTypes.SAME_VARIADIC);
+
+  /** The "MAP_ENTRIES(map)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction MAP_ENTRIES =
+      SqlBasicFunction.create(SqlKind.MAP_ENTRIES,
+          ReturnTypes.TO_MAP_ENTRIES_NULLABLE,
+          OperandTypes.MAP);
+
+  /** The "MAP_KEYS(map)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction MAP_KEYS =
+      SqlBasicFunction.create(SqlKind.MAP_KEYS,
+          ReturnTypes.TO_MAP_KEYS_NULLABLE,
+          OperandTypes.MAP);
+
+  /** The "MAP_VALUES(map)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction MAP_VALUES =
+      SqlBasicFunction.create(SqlKind.MAP_VALUES,
+          ReturnTypes.TO_MAP_VALUES_NULLABLE,
+          OperandTypes.MAP);
+
+  /** The "MAP_CONTAINS_KEY(map, key)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction MAP_CONTAINS_KEY =
+      SqlBasicFunction.create(SqlKind.MAP_CONTAINS_KEY,
+          ReturnTypes.BOOLEAN_NULLABLE,
+          OperandTypes.MAP_KEY);
+
+  private static RelDataType deriveTypeMapFromArrays(SqlOperatorBinding opBinding) {
+    final RelDataType keysArrayType = opBinding.getOperandType(0);
+    final RelDataType valuesArrayType = opBinding.getOperandType(1);
+    final boolean nullable = keysArrayType.isNullable() || valuesArrayType.isNullable();
+    return SqlTypeUtil.createMapType(
+        opBinding.getTypeFactory(),
+        requireNonNull(keysArrayType.getComponentType(), "inferred key type"),
+        requireNonNull(valuesArrayType.getComponentType(), "inferred value type"),
+        nullable);
+  }
+
+  /** The "MAP_FROM_ARRAYS(keysArray, valuesArray)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction MAP_FROM_ARRAYS =
+      SqlBasicFunction.create(SqlKind.MAP_FROM_ARRAYS,
+          SqlLibraryOperators::deriveTypeMapFromArrays,
+          OperandTypes.ARRAY_ARRAY);
+
+  private static RelDataType deriveTypeMapFromEntries(SqlOperatorBinding opBinding) {
+    final RelDataType entriesType = opBinding.collectOperandTypes().get(0);
+    final RelDataType entryType = entriesType.getComponentType();
+    requireNonNull(entryType, () -> "componentType of " + entriesType);
+    return SqlTypeUtil.createMapType(
+        opBinding.getTypeFactory(),
+        requireNonNull(entryType.getFieldList().get(0).getType(), "inferred key type"),
+        requireNonNull(entryType.getFieldList().get(1).getType(), "inferred value type"),
+        entriesType.isNullable() || entryType.isNullable());
+  }
+
+  /** The "MAP_FROM_ENTRIES(arrayOfEntries)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction MAP_FROM_ENTRIES =
+      SqlBasicFunction.create(SqlKind.MAP_FROM_ENTRIES,
+          SqlLibraryOperators::deriveTypeMapFromEntries,
+          OperandTypes.MAP_FROM_ENTRIES);
+
+  /** The "STR_TO_MAP(string[, stringDelimiter[, keyValueDelimiter]])" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction STR_TO_MAP =
+      SqlBasicFunction.create(SqlKind.STR_TO_MAP,
+          ReturnTypes.IDENTITY_TO_MAP_NULLABLE,
+          OperandTypes.STRING_OPTIONAL_STRING_OPTIONAL_STRING);
+
+  /** The "SUBSTRING_INDEX(string, delimiter, count)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction SUBSTRING_INDEX =
+      SqlBasicFunction.create(SqlKind.SUBSTRING_INDEX,
+          ReturnTypes.ARG0_NULLABLE_VARYING,
+          OperandTypes.STRING_STRING_INTEGER)
+          .withFunctionType(SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {BIG_QUERY, MYSQL})
+  public static final SqlFunction REVERSE =
+      SqlBasicFunction.create(SqlKind.REVERSE,
+          ReturnTypes.ARG0_NULLABLE_VARYING,
+          OperandTypes.CHARACTER)
+          .withFunctionType(SqlFunctionCategory.STRING);
+
+  /** The "REVERSE(string|array)" function. */
+  @LibraryOperator(libraries = {SPARK})
+  public static final SqlFunction REVERSE_SPARK =
+      SqlBasicFunction.create(SqlKind.REVERSE,
+              ReturnTypes.ARG0_ARRAY_NULLABLE_VARYING,
+              OperandTypes.CHARACTER.or(OperandTypes.ARRAY))
+          .withFunctionType(SqlFunctionCategory.STRING)
+          .withKind(SqlKind.REVERSE_SPARK);
+
+  /** The "LEVENSHTEIN(string1, string2)" function. */
+  @LibraryOperator(libraries = {HIVE, SPARK})
+  public static final SqlFunction LEVENSHTEIN =
+      SqlBasicFunction.create("LEVENSHTEIN",
+          ReturnTypes.INTEGER_NULLABLE,
+          OperandTypes.STRING_STRING,
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {BIG_QUERY, MYSQL})
+  public static final SqlFunction FROM_BASE64 =
+      SqlBasicFunction.create("FROM_BASE64",
+          ReturnTypes.VARBINARY_FORCE_NULLABLE,
+          OperandTypes.STRING, SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction TO_BASE64 =
+      SqlBasicFunction.create("TO_BASE64",
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.STRING.or(OperandTypes.BINARY),
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {HIVE})
+  public static final SqlFunction BASE64 =
+      SqlBasicFunction.create("BASE64",
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.STRING.or(OperandTypes.BINARY),
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {HIVE})
+  public static final SqlFunction UN_BASE64 =
+      SqlBasicFunction.create("UNBASE64",
+          ReturnTypes.VARBINARY_FORCE_NULLABLE,
+          OperandTypes.STRING, SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {BIG_QUERY})
+  public static final SqlFunction FROM_BASE32 =
+      SqlBasicFunction.create("FROM_BASE32",
+          ReturnTypes.VARBINARY_NULLABLE,
+          OperandTypes.CHARACTER, SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {BIG_QUERY})
+  public static final SqlFunction TO_BASE32 =
+      SqlBasicFunction.create("TO_BASE32",
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.STRING,
+          SqlFunctionCategory.STRING);
+
+  /**
+   * The "FROM_HEX(varchar)" function; converts a hexadecimal-encoded {@code varchar} into bytes.
+   */
+  @LibraryOperator(libraries = {BIG_QUERY})
+  public static final SqlFunction FROM_HEX =
+      SqlBasicFunction.create("FROM_HEX",
+          ReturnTypes.VARBINARY_NULLABLE,
+          OperandTypes.CHARACTER,
+          SqlFunctionCategory.STRING);
+
+  /**
+   * The "TO_HEX(binary)" function; converts {@code binary} into a hexadecimal varchar.
+   */
+  @LibraryOperator(libraries = {BIG_QUERY})
+  public static final SqlFunction TO_HEX =
+      SqlBasicFunction.create("TO_HEX",
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.BINARY,
+          SqlFunctionCategory.STRING);
+
+  /**
+   * The "HEX(string)" function; converts {@code string} into a hexadecimal varchar.
+   */
+  @LibraryOperator(libraries = {HIVE, SPARK})
+  public static final SqlFunction HEX =
+      SqlBasicFunction.create("HEX",
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.CHARACTER,
+          SqlFunctionCategory.STRING);
+
+  /** The "FORMAT_NUMBER(value, decimalOrFormat)" function. */
+  @LibraryOperator(libraries = {HIVE, SPARK})
+  public static final SqlFunction FORMAT_NUMBER =
+      SqlBasicFunction.create("FORMAT_NUMBER",
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.or(
+              OperandTypes.NUMERIC_NUMERIC,
+              OperandTypes.NUMERIC_CHARACTER),
+          SqlFunctionCategory.STRING);
+
+  /** The "TO_CHAR(timestamp, format)" function;
+   * converts {@code timestamp} to string according to the given {@code format}.
+   *
+   * <p>({@code TO_CHAR} is not supported in MySQL, but it is supported in
+   * MariaDB, a variant of MySQL covered by {@link SqlLibrary#MYSQL}.) */
+  @LibraryOperator(libraries = {MYSQL, ORACLE, REDSHIFT})
+  public static final SqlFunction TO_CHAR =
+      SqlBasicFunction.create("TO_CHAR",
+          ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.TIMESTAMP_STRING,
+          SqlFunctionCategory.TIMEDATE);
+
+  /** The "TO_CHAR(timestamp, format)" function;
+   * converts {@code timestamp} to string according to the given {@code format}. */
+  @LibraryOperator(libraries = {POSTGRESQL}, exceptLibraries = {REDSHIFT})
+  public static final SqlFunction TO_CHAR_PG =
+      SqlBasicFunction.create("TO_CHAR", ReturnTypes.VARCHAR_NULLABLE,
+          OperandTypes.TIMESTAMP_STRING, SqlFunctionCategory.TIMEDATE);
+
   /** The "TO_DATE(string1, string2)" function; casts string1
    * to a DATE using the format specified in string2. */
   @LibraryOperator(libraries = {ORACLE, REDSHIFT, HIVE})
   public static final SqlFunction TO_DATE =
-      new SqlFunction("TO_DATE",
-          SqlKind.OTHER_FUNCTION,
+      SqlBasicFunction.create("TO_DATE",
           ReturnTypes.DATE_NULLABLE,
-          null,
           OperandTypes.STRING_STRING,
           SqlFunctionCategory.TIMEDATE);
+
+  /** The "TO_DATE(string1, string2)" function for PostgreSQL; casts string1
+   * to a DATE using the format specified in string2. */
+  @LibraryOperator(libraries = {POSTGRESQL}, exceptLibraries = {REDSHIFT})
+  public static final SqlFunction TO_DATE_PG =
+      SqlBasicFunction.create("TO_DATE", ReturnTypes.DATE_NULLABLE,
+          OperandTypes.STRING_STRING, SqlFunctionCategory.TIMEDATE);
 
   /** The "TO_TIMESTAMP(string1, string2)" function; casts string1
    * to a TIMESTAMP using the format specified in string2. */

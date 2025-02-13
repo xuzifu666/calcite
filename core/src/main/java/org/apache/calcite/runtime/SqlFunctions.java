@@ -2795,6 +2795,55 @@ public class SqlFunctions {
     return list;
   }
 
+  /** SQL {@code ARRAY_SLICE(array, start, length)} function. */
+  public static List arraySlice(List list, int start, int length) {
+    // return empty list if start/length are out of range of the array
+    if (start + length > list.size()) {
+      return Collections.emptyList();
+    }
+    return list.subList(start, start + length);
+  }
+
+  /** SQL {@code ARRAY_TO_STRING(array, delimiter)} function. */
+  public static String arrayToString(List list, String delimiter) {
+    return arrayToString(list, delimiter, null);
+  }
+
+  /** SQL {@code ARRAY_TO_STRING(array, delimiter, nullText)} function. */
+  public static String arrayToString(List list, String delimiter, @Nullable String nullText) {
+    // Note that the SQL function ARRAY_TO_STRING that we implement will return
+    // 'NULL' when the nullText argument is NULL. However, that is handled by
+    // the nullPolicy of the RexToLixTranslator. So here a NULL value
+    // for the nullText argument can only come from the above 2-argument version.
+    StringBuilder sb = new StringBuilder();
+    boolean isFirst = true;
+    for (Object item : list) {
+      String str;
+      if (item == null) {
+        if (nullText == null) {
+          continue;
+        } else {
+          str = nullText;
+        }
+      } else if (item instanceof String) {
+        str = (String) item;
+      } else if (item instanceof ByteString) {
+        str = item.toString();
+      } else {
+        throw new IllegalStateException(
+            "arrayToString supports only String or ByteString, but got "
+                + item.getClass().getName());
+      }
+
+      if (!isFirst) {
+        sb.append(delimiter);
+      }
+      sb.append(str);
+      isFirst = false;
+    }
+    return sb.toString();
+  }
+
   /**
    * Function that, given a certain List containing single-item structs (i.e. arrays / lists with
    * a single item), builds an Enumerable that returns those single items inside the structs.

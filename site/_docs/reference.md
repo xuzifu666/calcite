@@ -2520,14 +2520,58 @@ semantics.
 | b | ARRAY_CONCAT(array [, array ]*)                | Concatenates one or more arrays. If any input argument is `NULL` the function returns `NULL`
 | b | ARRAY_LENGTH(array)                            | Synonym for `CARDINALITY`
 | b | ARRAY_REVERSE(array)                           | Reverses elements of *array*
-| o | CHR(integer) | Returns the character having the binary equivalent to *integer* as a CHAR value
-| o | COSH(numeric)                                  | Returns the hyperbolic cosine of *numeric*
-| o | CONCAT(string, string)                         | Concatenates two strings
-| m p | CONCAT(string [, string ]*)                  | Concatenates two or more strings
-| m | COMPRESS(string)                               | Compresses a string using zlib compression and returns the result as a binary string.
-| p | CONVERT_TIMEZONE(tz1, tz2, datetime)           | Converts the timezone of *datetime* from *tz1* to *tz2*
-| b | CURRENT_DATETIME([timezone])                   | Returns the current time as a TIMESTAMP from *timezone*
-| m | DAYNAME(datetime)                              | Returns the name, in the connection's locale, of the weekday in *datetime*; for example, it returns '星期日' for both DATE '2020-02-10' and TIMESTAMP '2020-02-10 10:10:10'
+| s | ARRAY_SIZE(array)                              | Synonym for `CARDINALITY`
+| h | ARRAY_SLICE(array, start, length)              | Returns the subset or range of elements.
+| b | ARRAY_TO_STRING(array, delimiter [, nullText ])| Returns a concatenation of the elements in *array* as a STRING and take *delimiter* as the delimiter. If the *nullText* parameter is used, the function replaces any `NULL` values in the array with the value of *nullText*. If the *nullText* parameter is not used, the function omits the `NULL` value and its preceding delimiter. Returns `NULL` if any argument is `NULL`
+| s | ARRAY_UNION(array1, array2)                    | Returns an array of the elements in the union of *array1* and *array2*, without duplicates
+| s | ARRAYS_OVERLAP(array1, array2)                 | Returns true if *array1 contains at least a non-null element present also in *array2*. If the arrays have no common element and they are both non-empty and either of them contains a null element null is returned, false otherwise
+| s | ARRAYS_ZIP(array [, array ]*)                  | Returns a merged *array* of structs in which the N-th struct contains all N-th values of input arrays
+| s | SORT_ARRAY(array [, ascendingOrder])           | Sorts the *array* in ascending or descending order according to the natural ordering of the array elements. The default order is ascending if *ascendingOrder* is not specified. Null elements will be placed at the beginning of the returned array in ascending order or at the end of the returned array in descending order
+| p | ASIND(numeric)                                 | Returns the inverse sine of *numeric* in degrees as a double. Returns NaN if *numeric* is NaN. Fails if *numeric* is less than -1.0 or greater than 1.0.
+| * | ASINH(numeric)                                 | Returns the inverse hyperbolic sine of *numeric*
+| p | ATAND(numeric)                                 | Returns the inverse tangent of *numeric* in degrees as a double. Returns NaN if *numeric* is NaN.
+| * | ATANH(numeric)                                 | Returns the inverse hyperbolic tangent of *numeric*
+| * | BITAND(value1, value2)                         | Returns the bitwise AND of *value1* and *value2*. *value1* and *value2* must both be integer or binary values. Binary values must be of the same length.
+| * | BITOR(value1, value2)                          | Returns the bitwise OR of *value1* and *value2*. *value1* and *value2* must both be integer or binary values. Binary values must be of the same length.
+| * | BITXOR(value1, value2)                         | Returns the bitwise XOR of *value1* and *value2*. *value1* and *value2* must both be integer or binary values. Binary values must be of the same length.
+| * | BITNOT(value)                                  | Returns the bitwise NOT of *value*. *value* must be either an integer type or a binary value.
+| f | BITAND_AGG(value)                              | Equivalent to `BIT_AND(value)`
+| f | BITOR_AGG(value)                               | Equivalent to `BIT_OR(value)`
+| * | BITCOUNT(value)                                | Returns the bitwise COUNT of *value* or NULL if *value* is NULL. *value* must be and integer or binary value.
+| b s | BIT_COUNT(integer)                           | Returns the bitwise COUNT of *integer* or NULL if *integer* is NULL
+| m | BIT_COUNT(numeric)                             | Returns the bitwise COUNT of the integer portion of *numeric* or NULL if *numeric* is NULL
+| b m s | BIT_COUNT(binary)                          | Returns the bitwise COUNT of *binary* or NULL if *binary* is NULL
+| s | BIT_LENGTH(binary)                             | Returns the bit length of *binary*
+| s | BIT_LENGTH(string)                             | Returns the bit length of *string*
+| s | BIT_GET(value, position)                       | Returns the bit (0 or 1) value at the specified *position* of numeric *value*. The positions are numbered from right to left, starting at zero. The *position* argument cannot be negative
+| b | CEIL(value)                                    | Similar to standard `CEIL(value)` except if *value* is an integer type, the return type is a double
+| m s | CHAR(integer)                                | Returns the character whose ASCII code is *integer* % 256, or null if *integer* &lt; 0
+| b o p r | CHR(integer)                             | Returns the character whose UTF-8 code is *integer*
+| b | CODE_POINTS_TO_BYTES(integers)                 | Converts *integers*, an array of integers between 0 and 255 inclusive, into bytes; throws error if any element is out of range
+| b | CODE_POINTS_TO_STRING(integers)                | Converts *integers*, an array of integers between 0 and 0xD7FF or between 0xE000 and 0x10FFFF inclusive, into string; throws error if any element is out of range
+| o r | CONCAT(string, string)                       | Concatenates two strings, returns null only when both string arguments are null, otherwise treats null as empty string
+| b m | CONCAT(string [, string ]*)                  | Concatenates one or more strings, returns null if any of the arguments is null
+| p q | CONCAT(string [, string ]*)                  | Concatenates one or more strings, null is treated as empty string
+| m | CONCAT_WS(separator, str1 [, string ]*)        | Concatenates one or more strings, returns null only when separator is null, otherwise treats null arguments as empty strings
+| p | CONCAT_WS(separator, any [, any ]*)            | Concatenates all but the first argument, returns null only when separator is null, otherwise treats null arguments as empty strings
+| q | CONCAT_WS(separator, str1, str2 [, string ]*)  | Concatenates two or more strings, requires at least 3 arguments (up to 254), treats null arguments as empty strings
+| s | CONCAT_WS(separator [, string \| array(string)]*)  | Concatenates one or more strings or arrays. Besides the separator, other arguments can include strings or string arrays. returns null only when separator is null, treats other null arguments as empty strings
+| m | COMPRESS(string)                               | Compresses a string using zlib compression and returns the result as a binary string
+| b | CONTAINS_SUBSTR(expression, string [ , json_scope =&gt; json_scope_value ]) | Returns whether *string* exists as a substring in *expression*. Optional *json_scope* argument specifies what scope to search if *expression* is in JSON format. Returns NULL if a NULL exists in *expression* that does not result in a match
+| q | CONVERT(type, expression [ , style ])          | Equivalent to `CAST(expression AS type)`; ignores the *style* operand
+| o | CONVERT(string, destCharSet[, srcCharSet])     | Converts *string* from *srcCharSet* to *destCharSet*. If the *srcCharSet* parameter is not specified, then it uses the default CharSet
+| r | CONVERT_TIMEZONE(tz1, tz2, datetime)           | Converts the timezone of *datetime* from *tz1* to *tz2*
+| p | COSD(numeric)                                  | Returns the cosine of *numeric* in degrees as a double. Returns NaN if *numeric* is NaN. Fails if *numeric* is greater than the maximum double value.
+| * | COSH(numeric)                                  | Returns the hyperbolic cosine of *numeric*
+| * | COTH(numeric)                                  | Returns the hyperbolic cotangent of *numeric*
+| s h | CRC32(string)                                | Calculates a cyclic redundancy check value for string or binary argument and returns bigint value
+| * | CSC(numeric)                                   | Returns the cosecant of *numeric* in radians
+| * | CSCH(numeric)                                  | Returns the hyperbolic cosecant of *numeric*
+| b | CURRENT_DATETIME([ timeZone ])                 | Returns the current time as a TIMESTAMP from *timezone*
+| m | DAYNAME(datetime)                              | Returns the name, in the connection's locale, of the weekday in *datetime*; for example, for a locale of en, it will return 'Sunday' for both DATE '2020-02-10' and TIMESTAMP '2020-02-10 10:10:10', and for a locale of zh, it will return '星期日'
+| b | DATE(timestamp)                                | Extracts the DATE from a *timestamp*
+| b | DATE(timestampLtz)                             | Extracts the DATE from *timestampLtz* (an instant; BigQuery's TIMESTAMP type), assuming UTC
+| b | DATE(timestampLtz, timeZone)                   | Extracts the DATE from *timestampLtz* (an instant; BigQuery's TIMESTAMP type) in *timeZone*
 | b | DATE(string)                                   | Equivalent to `CAST(string AS DATE)`
 | b | DATE(year, month, day)                         | Returns a DATE value for *year*, *month*, and *day* (all of type INTEGER)
 | q r f | DATEADD(timeUnit, integer, datetime)       | Equivalent to `TIMESTAMPADD(timeUnit, integer, datetime)`

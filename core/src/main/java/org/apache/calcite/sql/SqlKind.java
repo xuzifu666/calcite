@@ -641,6 +641,54 @@ public enum SqlKind {
   /** {@code ARRAY_REVERSE} function (BigQuery semantics). */
   ARRAY_REVERSE,
 
+  /** {@code ARRAY_SIZE} function (Spark semantics). */
+  ARRAY_SIZE,
+
+  /** {@code ARRAY_SLICE} function (Hive semantics). */
+  ARRAY_SLICE,
+
+  /** {@code ARRAY_TO_STRING} function (BigQuery semantics). */
+  ARRAY_TO_STRING,
+
+  /** {@code ARRAY_UNION} function (Spark semantics). */
+  ARRAY_UNION,
+
+  /** {@code ARRAYS_OVERLAP} function (Spark semantics). */
+  ARRAYS_OVERLAP,
+
+  /** {@code ARRAYS_ZIP} function (Spark semantics). */
+  ARRAYS_ZIP,
+
+  /** {@code SORT_ARRAY} function (Spark semantics). */
+  SORT_ARRAY,
+
+  /** {@code MAP_CONCAT} function (Spark semantics). */
+  MAP_CONCAT,
+
+  /** {@code MAP_ENTRIES} function (Spark semantics). */
+  MAP_ENTRIES,
+
+  /** {@code MAP_KEYS} function (Spark semantics). */
+  MAP_KEYS,
+
+  /** {@code MAP_VALUES} function (Spark semantics). */
+  MAP_VALUES,
+
+  /** {@code MAP_CONTAINS_KEY} function (Spark semantics). */
+  MAP_CONTAINS_KEY,
+
+  /** {@code MAP_FROM_ARRAYS} function (Spark semantics). */
+  MAP_FROM_ARRAYS,
+
+  /** {@code MAP_FROM_ENTRIES} function (Spark semantics). */
+  MAP_FROM_ENTRIES,
+
+  /** {@code STR_TO_MAP} function (Spark semantics). */
+  STR_TO_MAP,
+
+  /** {@code SUBSTRING_INDEX} function (Spark semantics). */
+  SUBSTRING_INDEX,
+
   /** {@code REVERSE} function (SQL Server, MySQL). */
   REVERSE,
 
@@ -1451,6 +1499,99 @@ public enum SqlKind {
    */
   public final boolean belongsTo(Collection<SqlKind> category) {
     return category.contains(this);
+  }
+
+  /**
+   * If this kind represents a non-standard function, return OTHER_FUNCTION, otherwise
+   * return this.  Do not add standard functions here.
+   */
+  public SqlKind getFunctionKind() {
+    switch (this) {
+    case CONVERT:
+    case TRANSLATE:
+    case POSITION:
+    case DECODE:
+    case NVL:
+    case NVL2:
+    case GREATEST:
+    case GREATEST_PG:
+    case CONCAT2:
+    case CONCAT_WITH_NULL:
+    case CONCAT_WS_MSSQL:
+    case CONCAT_WS_POSTGRESQL:
+    case CONCAT_WS_SPARK:
+    case IF:
+    case LEAST:
+    case LEAST_PG:
+    case LOG:
+    case DATE_ADD:
+    case DATE_TRUNC:
+    case DATE_SUB:
+    case TIME_ADD:
+    case TIME_SUB:
+    case TIMESTAMP_ADD:
+    case TIMESTAMP_DIFF:
+    case TIMESTAMP_SUB:
+    case SAFE_CAST:
+    case FLOOR:
+    case CEIL:
+    case TRIM:
+    case LTRIM:
+    case RTRIM:
+    case ARRAY_APPEND:
+    case ARRAY_COMPACT:
+    case ARRAY_CONCAT:
+    case ARRAY_CONTAINS:
+    case ARRAY_DISTINCT:
+    case ARRAY_EXCEPT:
+    case ARRAY_INSERT:
+    case ARRAY_INTERSECT:
+    case ARRAY_JOIN:
+    case ARRAY_LENGTH:
+    case ARRAY_MAX:
+    case ARRAY_MIN:
+    case ARRAY_POSITION:
+    case ARRAY_PREPEND:
+    case ARRAY_REMOVE:
+    case ARRAY_REPEAT:
+    case ARRAY_REVERSE:
+    case ARRAY_SIZE:
+    case ARRAY_SLICE:
+    case ARRAY_TO_STRING:
+    case ARRAY_UNION:
+    case ARRAYS_OVERLAP:
+    case ARRAYS_ZIP:
+    case SORT_ARRAY:
+    case MAP_CONCAT:
+    case MAP_ENTRIES:
+    case MAP_KEYS:
+    case MAP_VALUES:
+    case MAP_CONTAINS_KEY:
+    case MAP_FROM_ARRAYS:
+    case MAP_FROM_ENTRIES:
+    case STR_TO_MAP:
+    case REVERSE:
+    case REVERSE_SPARK:
+    case SOUNDEX_SPARK:
+    case SUBSTR_BIG_QUERY:
+    case SUBSTR_MYSQL:
+    case SUBSTR_ORACLE:
+    case SUBSTR_POSTGRESQL:
+    case CHAR_LENGTH:
+    case ENDS_WITH:
+    case STARTS_WITH:
+    case JSON_TYPE:
+    case CONTAINS_SUBSTR:
+    case ST_DWITHIN:
+    case ST_POINT:
+    case ST_POINT3:
+    case ST_MAKE_LINE:
+    case ST_CONTAINS:
+    case HILBERT:
+      return OTHER_FUNCTION;
+    default:
+      return this;
+    }
   }
 
   @SafeVarargs
