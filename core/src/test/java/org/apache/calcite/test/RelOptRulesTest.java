@@ -7035,4 +7035,74 @@ class RelOptRulesTest extends RelOptTestBase {
         .withRule(CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES_TO_JOIN)
         .check();
   }
+
+  @Test void testLoptOptimizeJoinRulePrioritizeSelfJoin() {
+    HepProgram program = new HepProgramBuilder()
+        .addMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .addRuleInstance(CoreRules.JOIN_TO_MULTI_JOIN)
+        .build();
+
+    sql("select e.empno from emp e"
+        + " inner join dept d on d.deptno = e.deptno"
+        + " inner join emp e2 on e.empno = e2.empno")
+        .withPre(program)
+        .withRule(CoreRules.MULTI_JOIN_OPTIMIZE)
+        .check();
+  }
+
+  /**
+   * Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6874">[CALCITE-6874]
+   * FilterCalcMergeRule/ProjectCalcMergeRule should not merge a Filter/Project to Calc
+   * when it contains Subquery</a>. */
+  @Test void testFilterCalcMergeRule() {
+    final String sql = "select deptno from sales.emp where\n"
+        + "exists (select deptno from sales.emp where empno < 20)\n";
+    HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(CoreRules.PROJECT_FILTER_TRANSPOSE)
+        .addRuleInstance(CoreRules.PROJECT_TO_CALC)
+        .build();
+    sql(sql)
+        .withPre(program)
+        .withRule(CoreRules.FILTER_CALC_MERGE)
+        .checkUnchanged();
+  }
+
+  @Test void testProjectCalcMergeRule() {
+    final String sql = "select exists (select deptno from sales.emp)\n"
+        + "from (select deptno from sales.emp where empno < 20)\n";
+    HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(CoreRules.PROJECT_FILTER_TRANSPOSE)
+        .addRuleInstance(CoreRules.FILTER_TO_CALC)
+        .build();
+    sql(sql)
+        .withPre(program)
+        .withRule(CoreRules.PROJECT_CALC_MERGE)
+        .checkUnchanged();
+  }
+
+  /**
+   * Test case of
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6850">[CALCITE-6850]
+   * ProjectRemoveRule with two Projects
+   * does not keep field names from the top one</a>. */
+  @Test void testProjectRemoveRule() {
+    final Function<RelBuilder, RelNode> relFn = b -> {
+      RelNode r = b.scan("DEPT")
+          .project(
+              b.call(SqlStdOperatorTable.PLUS,
+              ImmutableList.of(b.field(0), b.literal(1))))
+          .build();
+      b.push(r);
+      return LogicalProject.create(r, ImmutableList.of(),
+          ImmutableList.of(b.field(0)),
+          ImmutableList.of("newAlias"), ImmutableSet.of());
+    };
+    HepProgramBuilder builder = new HepProgramBuilder();
+    builder.addRuleInstance(CoreRules.PROJECT_REMOVE);
+    HepPlanner planner =
+        new HepPlanner(builder.build(), null, true, null, RelOptCostImpl.FACTORY);
+    fixture().withRelBuilderConfig(a -> a.withBloat(-1))
+        .relFn(relFn).withPlanner(planner).check();
+  }
 }
