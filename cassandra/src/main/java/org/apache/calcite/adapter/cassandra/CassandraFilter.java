@@ -232,6 +232,8 @@ public class CassandraFilter extends Filter implements CassandraRel {
       // We currently only use equality, but inequalities on clustering keys
       // should be possible in the future
       switch (node.getKind()) {
+      case NOT_EQUALS:
+        return translateBinary("!=", "!=", (RexCall) node);
       case EQUALS:
         return translateBinary("=", "=", (RexCall) node);
       case LESS_THAN:
