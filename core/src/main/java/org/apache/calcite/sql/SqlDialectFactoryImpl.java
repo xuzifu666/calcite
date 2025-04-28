@@ -23,6 +23,8 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.dialect.ClickHouseSqlDialect;
 import org.apache.calcite.sql.dialect.Db2SqlDialect;
 import org.apache.calcite.sql.dialect.DerbySqlDialect;
+import org.apache.calcite.sql.dialect.DorisSqlDialect;
+import org.apache.calcite.sql.dialect.DuckDBSqlDialect;
 import org.apache.calcite.sql.dialect.ExasolSqlDialect;
 import org.apache.calcite.sql.dialect.FirebirdSqlDialect;
 import org.apache.calcite.sql.dialect.H2SqlDialect;
@@ -171,6 +173,10 @@ public class SqlDialectFactoryImpl implements SqlDialectFactory {
       return Db2SqlDialect.DEFAULT;
     case DERBY:
       return DerbySqlDialect.DEFAULT;
+    case DUCKDB:
+      return DuckDBSqlDialect.DEFAULT;
+    case DORIS:
+      return DorisSqlDialect.DEFAULT;
     case EXASOL:
       return ExasolSqlDialect.DEFAULT;
     case FIREBIRD:

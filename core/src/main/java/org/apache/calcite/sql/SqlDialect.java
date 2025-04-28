@@ -272,6 +272,8 @@ public class SqlDialect {
       return DatabaseProduct.CLICKHOUSE;
     case "DBMS:CLOUDSCAPE":
       return DatabaseProduct.DERBY;
+    case "DUCKDB":
+      return DatabaseProduct.DUCKDB;
     case "EXASOL":
       return DatabaseProduct.EXASOL;
     case "HIVE":
@@ -1303,6 +1305,8 @@ public class SqlDialect {
     ORACLE("Oracle", "\"", NullCollation.HIGH),
     DERBY("Apache Derby", null, NullCollation.HIGH),
     DB2("IBM DB2", null, NullCollation.HIGH),
+    DUCKDB("DUCKDB", null, NullCollation.LAST),
+    DORIS("Doris", "`", NullCollation.LOW),
     EXASOL("Exasol", "\"", NullCollation.LOW),
     FIREBIRD("Firebird", null, NullCollation.HIGH),
     H2("H2", "\"", NullCollation.HIGH),
