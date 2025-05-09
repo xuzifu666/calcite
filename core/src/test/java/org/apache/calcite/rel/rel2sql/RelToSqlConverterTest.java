@@ -2817,6 +2817,9 @@ class RelToSqlConverterTest {
         .withSpark().ok(expected);
   }
 
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6997">[CALCITE-6997]
+   * SQLite dialect implementation</a>. */
   @Test void testHiveSparkAndBqTrimWithLeading() {
     final String query = "SELECT TRIM(LEADING ' ' from ' str ')\n"
         + "from \"foodmart\".\"reserve_employee\"";
