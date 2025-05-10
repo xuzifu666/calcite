@@ -2820,7 +2820,7 @@ class RelToSqlConverterTest {
   /** Test case for
    * <a href="https://issues.apache.org/jira/browse/CALCITE-6997">[CALCITE-6997]
    * SQLite dialect implementation</a>. */
-  @Test void testHiveSparkAndBqTrimWithLeading() {
+  @Test void testLeadingTrim() {
     final String query = "SELECT TRIM(LEADING ' ' from ' str ')\n"
         + "from \"foodmart\".\"reserve_employee\"";
     final String expected = "SELECT LTRIM(' str ')\n"
@@ -2833,10 +2833,10 @@ class RelToSqlConverterTest {
         .withBigQuery().ok(expectedBigQuery)
         .withHive().ok(expected)
         .withSpark().ok(expected)
-        .withSqlite().ok(expectedSqlite);
+        .withSQLite().ok(expectedSqlite);
   }
 
-  @Test void testHiveSparkAndBqTrimWithTailing() {
+  @Test void testTailingTrim() {
     final String query = "SELECT TRIM(TRAILING ' ' from ' str ')\n"
         + "from \"foodmart\".\"reserve_employee\"";
     final String expected = "SELECT RTRIM(' str ')\n"
@@ -2849,7 +2849,7 @@ class RelToSqlConverterTest {
         .withBigQuery().ok(expectedBigQuery)
         .withHive().ok(expected)
         .withSpark().ok(expected)
-        .withSqlite().ok(expectedSqlite);
+        .withSQLite().ok(expectedSqlite);
   }
 
   /** Test case for
@@ -2890,10 +2890,10 @@ class RelToSqlConverterTest {
         + "FROM \"foodmart\".\"reserve_employee\"";
     sql(query)
         .withBigQuery().ok(expected)
-        .withSqlite().ok(expectedSqlite);
+        .withSQLite().ok(expectedSqlite);
   }
 
-  @Test void testHiveAndSparkTrimWithBothChar() {
+  @Test void testBothTrim() {
     final String query = "SELECT TRIM(both 'a' from 'abcda')\n"
         + "from \"foodmart\".\"reserve_employee\"";
     final String expected = "SELECT REGEXP_REPLACE('abcda', '^(a)*|(a)*$', '')\n"
@@ -2916,7 +2916,7 @@ class RelToSqlConverterTest {
     sql(query)
         .withBigQuery().ok(expected)
         .withPresto().ok(expectedPresto)
-        .withSqlite().ok(expectedSqlite);
+        .withSQLite().ok(expectedSqlite);
   }
 
   @Test void testHiveAndSparkTrimWithTailingChar() {
@@ -2938,7 +2938,7 @@ class RelToSqlConverterTest {
         + "FROM \"foodmart\".\"reserve_employee\"";
     sql(query)
       .withBigQuery().ok(expected)
-      .withSqlite().ok(expectedSqlite);
+      .withSQLite().ok(expectedSqlite);
   }
 
   @Test void testHiveAndSparkTrimWithBothSpecialCharacter() {
@@ -3141,7 +3141,7 @@ class RelToSqlConverterTest {
     final String query = "select position('A' IN 'ABC') from \"product\"";
     final String expected = "SELECT INSTR('ABC', 'A')\n"
         + "FROM \"foodmart\".\"product\"";
-    sql(query).withSqlite().ok(expected);
+    sql(query).withSQLite().ok(expected);
   }
 
   @Test void testPositionFunctionForHive() {
@@ -5352,7 +5352,7 @@ class RelToSqlConverterTest {
         .withTrino().ok(expectedTrino)
         .withStarRocks().ok(expectedStarRocks)
         .withDoris().ok(expectedStarRocks)
-        .withSqlite().ok(expectedSqlite);
+        .withSQLite().ok(expectedSqlite);
   }
 
   @Test void testFloorMssqlMonth() {
@@ -7945,7 +7945,7 @@ class RelToSqlConverterTest {
     sql.withBigQuery().ok(expectedBigQuery);
     sql.withSnowflake().ok(expectedSnowflake);
     sql.withDuckDB().ok(expectedDuckDB);
-    sql.withSqlite().ok(expectedSqlite);
+    sql.withSQLite().ok(expectedSqlite);
   }
 
   /** Test case for
@@ -9588,7 +9588,7 @@ class RelToSqlConverterTest {
         + "FROM \"foodmart\".\"reserve_employee\"";
 
     sql(query).withStarRocks().ok(expectedStarRocks)
-        .withSqlite().ok(expectedSqlite)
+        .withSQLite().ok(expectedSqlite)
         .withDoris().ok(expectedStarRocks)
         .withPresto().ok(expectedPresto);
   }
@@ -10122,7 +10122,7 @@ class RelToSqlConverterTest {
       return dialect(DatabaseProduct.SNOWFLAKE.getDialect());
     }
 
-    Sql withSqlite() {
+    Sql withSQLite() {
       return dialect(DatabaseProduct.SQLITE.getDialect());
     }
 
