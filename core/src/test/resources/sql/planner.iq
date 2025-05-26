@@ -103,6 +103,33 @@ EnumerableAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MAX($0)])
   EnumerableValues(tuples=[[{ 10 }, { 10 }, { 20 }, { 30 }, { 30 }, { 50 }, { 50 }, { 60 }, { null }]])
 !plan
 
+select deptno * deptno * deptno * deptno * 0 from emp limit 1;
++--------+
+| EXPR$0 |
++--------+
+|      0 |
++--------+
+(1 row)
+
+!ok
+EnumerableCalc(expr#0=[{inputs}], expr#1=[0], expr#2=[CAST($t1):INTEGER], EXPR$0=[$t2])
+  EnumerableLimit(fetch=[1])
+    EnumerableValues(tuples=[[{ 10 }, { 10 }, { 20 }, { 30 }, { 30 }, { 50 }, { 50 }, { 60 }, { null }]])
+!plan
+
+select null * deptno from emp limit 1;
++--------+
+| EXPR$0 |
++--------+
+|        |
++--------+
+(1 row)
+
+!ok
+EnumerableLimit(fetch=[1])
+  EnumerableValues(tuples=[[{ null }, { null }, { null }, { null }, { null }, { null }, { null }, { null }, { null }]])
+!plan
+
 !set planner-rules "+AGGREGATE_MIN_MAX_TO_LIMIT,
   -EnumerableRules.ENUMERABLE_AGGREGATE_RULE,
   +PROJECT_SUB_QUERY_TO_CORRELATE"

@@ -475,6 +475,11 @@ public class RexSimplify {
   }
 
   private RexNode simplifyMultiply(RexCall e) {
+    final int zeroIndex = findLiteralIndex(e.operands, BigDecimal.ZERO);
+    if (zeroIndex >= 0) {
+      return rexBuilder.makeLiteral(0, e.getType());
+    }
+
     final int oneIndex = findLiteralIndex(e.operands, BigDecimal.ONE);
     if (oneIndex >= 0) {
       // return the other operand.

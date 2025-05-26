@@ -3986,6 +3986,8 @@ class RexProgramTest extends RexProgramTestBase {
     checkSimplify(mul(one, a), "?0.notNullInt1");
     checkSimplify(mul(a, nullInt), "null:INTEGER");
     checkSimplify(mul(nullInt, a), "null:INTEGER");
+    checkSimplify(mul(a, zero), "0");
+    checkSimplify(mul(mul(a, zero), zero), "0");
 
     checkSimplify(div(a, one), "?0.notNullInt1");
     checkSimplify(div(a, nullInt), "null:INTEGER");
