@@ -2099,6 +2099,12 @@ public class RexSimplify {
           return trueLiteral;
         }
         break;
+      case IS_NOT_FALSE:
+        RexNode rexNode = ((RexCall) term).getOperands().get(0);
+        if (isSafeExpression(rexNode) && terms.contains(not(rexNode))) {
+          return trueLiteral;
+        }
+        break;
       case NOT:
         RexNode x = ((RexCall) term).getOperands().get(0);
         if (isSafeExpression(x) && terms.contains(x)) {

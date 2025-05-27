@@ -3487,6 +3487,49 @@ class RexProgramTest extends RexProgramTestBase {
     checkSimplify(or(unsafeRel, trueLiteral), "true");
   }
 
+  /** Unit test for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-4189">[CALCITE-4189]
+   * Simplify 'p OR (p IS NOT TRUE)' to 'TRUE'</a>. */
+  @Test public void testSimplifyOrNot3() {
+    final SqlOperator func =
+        SqlBasicFunction.create("func", ReturnTypes.BOOLEAN_NULLABLE, OperandTypes.VARIADIC);
+    final RexNode unsafeRel = rexBuilder.makeCall(func, div(vInt(0), literal(2)));
+    final RexNode unsafeRel1 = rexBuilder.makeCall(func, div(vInt(1), literal(1)));
+    // NOT x OR x IS NOT FALSE ==> "true"
+    checkSimplify(or(not(vBool()), isNotFalse(vBool())), "true");
+    checkSimplify(or(not(vBoolNotNull()), isNotFalse(vBoolNotNull())), "true");
+    // outside unsafe expression will not prevent simplification
+    checkSimplify(or(unsafeRel, not(vBool()), isNotFalse(vBool())), "true");
+
+    // x OR NOT x ==> "true" (if x is not nullable)
+    checkSimplify(or(vBoolNotNull(), not(vBoolNotNull())), "true");
+    checkSimplify(or(unsafeRel, vBoolNotNull(), not(vBoolNotNull())), "true");
+
+    // x OR NOT x ==> x IS NOT NULL OR NULL (if x is nullable)
+    checkSimplify3(or(vBool(), not(vBool())),
+        "OR(IS NOT NULL(?0.bool0), null)",
+        "IS NOT NULL(?0.bool0)",
+        "true");
+    checkSimplify3(or(unsafeRel, vBool(), not(vBool())),
+        "OR(func(/(?0.int0, 2)), IS NOT NULL(?0.bool0), null)",
+        "OR(func(/(?0.int0, 2)), IS NOT NULL(?0.bool0))",
+        "true");
+    // remove all redundant NULL
+    checkSimplify3(or(vBool(0), not(vBool(0)), vBool(1), not(vBool(1))),
+        "OR(IS NOT NULL(?0.bool0), null, IS NOT NULL(?0.bool1))",
+        "OR(IS NOT NULL(?0.bool0), IS NOT NULL(?0.bool1))",
+        "true");
+
+    // unsafe expression can not be simplified
+    checkSimplify3(or(unsafeRel1, isNotFalse(unsafeRel1)),
+        "OR(func(?0.int1), IS NOT FALSE(func(?0.int1)))",
+        "OR(func(?0.int1), IS NOT FALSE(func(?0.int1)))",
+        "func(?0.int1)");
+    checkSimplifyUnchanged(or(unsafeRel, not(unsafeRel)));
+
+    checkSimplify(or(unsafeRel, trueLiteral), "true");
+  }
+
   private void checkSarg(String message, Sarg sarg,
       Matcher<Integer> complexityMatcher, Matcher<String> stringMatcher) {
     assertThat(message, sarg.complexity(), complexityMatcher);
