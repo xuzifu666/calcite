@@ -222,7 +222,12 @@ public class RexInterpreter implements RexVisitor<Comparable> {
           : number(values.get(0)).multiply(number(values.get(1)));
     case DIVIDE:
       return containsNull(values) ? N
+          : number(values.get(1)).equals(new BigDecimal(0)) ? N
           : number(values.get(0)).divide(number(values.get(1)));
+    case MOD:
+      return containsNull(values) ? N
+          : number(values.get(1)).equals(new BigDecimal(0)) ? N
+          : number(values.get(0)).remainder(number(values.get(1)));
     case CAST:
       return cast(values);
     case COALESCE:

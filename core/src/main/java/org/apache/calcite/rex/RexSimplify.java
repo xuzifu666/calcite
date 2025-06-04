@@ -326,6 +326,7 @@ public class RexSimplify {
     case CHECKED_MINUS:
     case CHECKED_TIMES:
     case CHECKED_DIVIDE:
+    case MOD:
       return simplifyArithmetic((RexCall) e);
     case M2V:
       return simplifyM2v((RexCall) e);
@@ -424,6 +425,22 @@ public class RexSimplify {
     return -1;
   }
 
+  /**
+   * Try to find a NULL literal with the given value in the input list.
+   * The type of the literal must be one of the numeric types.
+   */
+  private static int findNullIndex(List<RexNode> operands) {
+    for (int i = 0; i < operands.size(); i++) {
+      if (operands.get(i).isA(SqlKind.LITERAL)) {
+        Comparable comparable = ((RexLiteral) operands.get(i)).getValue();
+        if (comparable == null) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
   private RexNode simplifyArithmetic(RexCall e) {
     if (e.getType().getSqlTypeName().getFamily() != SqlTypeFamily.NUMERIC
         || e.getOperands().stream().anyMatch(
@@ -448,6 +465,8 @@ public class RexSimplify {
     case DIVIDE:
     case CHECKED_DIVIDE:
       return simplifyDivide(e);
+    case MOD:
+      return simplifyMod(e);
     default:
       throw new IllegalArgumentException("Unsupported arithmeitc operation " + e.getKind());
     }
@@ -486,12 +505,33 @@ public class RexSimplify {
   }
 
   private RexNode simplifyDivide(RexCall e) {
+    final int zeroIndex = findLiteralIndex(e.operands, BigDecimal.ZERO);
+    if (zeroIndex == 1) {
+      return rexBuilder.makeNullLiteral(e.getType());
+    }
     final int oneIndex = findLiteralIndex(e.operands, BigDecimal.ONE);
     if (oneIndex == 1) {
       RexNode leftOperand = e.getOperands().get(0);
       return leftOperand.getType().equals(e.getType())
           ? leftOperand : rexBuilder.makeCast(e.getParserPosition(), e.getType(), leftOperand);
     }
+    return simplifyGenericNode(e);
+  }
+
+  private RexNode simplifyMod(RexCall e) {
+    final int nullIndex = findNullIndex(e.operands);
+    if (nullIndex >= 0) {
+      return rexBuilder.makeNullLiteral(e.getType());
+    }
+    final int zeroIndex = findLiteralIndex(e.operands, BigDecimal.ZERO);
+    // A mod 0 always return NULL literal
+    // 0 mod A always return 0 literal
+    if (zeroIndex == 1) {
+      return rexBuilder.makeNullLiteral(e.getType());
+    } else if (zeroIndex == 0) {
+      return rexBuilder.makeLiteral(0, e.getType());
+    }
+
     return simplifyGenericNode(e);
   }
 
