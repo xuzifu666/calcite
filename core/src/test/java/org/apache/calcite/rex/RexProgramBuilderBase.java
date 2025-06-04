@@ -327,6 +327,11 @@ public abstract class RexProgramBuilderBase {
   protected RexNode add(RexNode n1, RexNode n2) {
     return rexBuilder.makeCall(SqlStdOperatorTable.PLUS, n1, n2);
   }
+
+  protected RexNode mod(RexNode n1, RexNode n2) {
+    return rexBuilder.makeCall(SqlStdOperatorTable.MOD, n1, n2);
+  }
+
   protected RexNode greatest(RexNode... nodes) {
     return rexBuilder.makeCall(SqlLibraryOperators.GREATEST, nodes);
   }

@@ -184,6 +184,8 @@ public class RexInterpreter implements RexVisitor<Comparable> {
       return compare(values, c -> c < 0);
     case LESS_THAN_OR_EQUAL:
       return compare(values, c -> c <= 0);
+    case MOD:
+      return mod(values);
     case AND:
       return values.stream().map(Truthy::of).min(Comparator.naturalOrder())
           .get().toComparable();
@@ -337,6 +339,43 @@ public class RexInterpreter implements RexVisitor<Comparable> {
       }
     }
     return N;
+  }
+
+  private static Comparable mod(List<Comparable> values) {
+    if (containsNull(values)) {
+      return N;
+    }
+    Comparable v0 = values.get(0);
+    Comparable v1 = values.get(1);
+
+    if (v0 instanceof Number && v1 instanceof NlsString) {
+      try {
+        v1 = new BigDecimal(((NlsString) v1).getValue());
+      } catch (NumberFormatException e) {
+        return false;
+      }
+    }
+    if (v1 instanceof Number && v0 instanceof NlsString) {
+      try {
+        v0 = new BigDecimal(((NlsString) v0).getValue());
+      } catch (NumberFormatException e) {
+        return false;
+      }
+    }
+
+    BigDecimal first = null;
+    BigDecimal second = null;
+    if (v0 instanceof Number) {
+      first = number(v0);
+    }
+    if (v1 instanceof Number) {
+      second = number(v1);
+    }
+    if (second.equals(new BigDecimal(0))) {
+      return N;
+    }
+
+    return first.remainder(second);
   }
 
   private static Comparable ceil(RexCall call, List<Comparable> values) {
