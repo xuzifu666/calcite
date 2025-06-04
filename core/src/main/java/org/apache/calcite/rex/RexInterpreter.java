@@ -371,9 +371,6 @@ public class RexInterpreter implements RexVisitor<Comparable> {
     if (v1 instanceof Number) {
       second = number(v1);
     }
-    if (second.equals(new BigDecimal(0))) {
-      return N;
-    }
 
     return first.remainder(second);
   }

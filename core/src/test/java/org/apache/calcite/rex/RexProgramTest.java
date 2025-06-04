@@ -3974,7 +3974,6 @@ class RexProgramTest extends RexProgramTestBase {
     RexNode b = vDecimalNotNull(2);
     RexNode half = literal(new BigDecimal(0.5), b.getType());
 
-    checkSimplify(mod(one, zero), "null:INTEGER");
     checkSimplify(mod(zero, one), "0");
     checkSimplify(mod(nullInt, one), "null:INTEGER");
     checkSimplify(mod(one, nullInt), "null:INTEGER");

@@ -524,9 +524,8 @@ public class RexSimplify {
     // 0 mod A always return 0 literal
     if (zeroIndex == 0) {
       return rexBuilder.makeLiteral(0, e.getType());
-    } else if (zeroIndex == 1) {
-      return rexBuilder.makeNullLiteral(e.getType());
     }
+
     return simplifyGenericNode(e);
   }
 
