@@ -363,15 +363,15 @@ public class RexInterpreter implements RexVisitor<Comparable> {
       }
     }
 
-    BigDecimal first = null;
-    BigDecimal second = null;
     if (v0 instanceof Number) {
-      first = number(v0);
+      v0 = number(v0);
     }
     if (v1 instanceof Number) {
-      second = number(v1);
+      v1 = number(v1);
     }
 
+    BigDecimal first = (BigDecimal) v0;
+    BigDecimal second = (BigDecimal) v1;
     return first.remainder(second);
   }
 
