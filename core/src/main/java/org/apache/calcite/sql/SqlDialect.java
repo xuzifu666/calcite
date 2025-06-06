@@ -448,6 +448,14 @@ public class SqlDialect {
       int rightPrec) {
     SqlOperator operator = call.getOperator();
     switch (call.getKind()) {
+    case JOIN:
+      SqlJoin join = (SqlJoin) call;
+      if (!supportsJoinType(join.getJoinType())) {
+        throw new RuntimeException(this.getClass().getSimpleName()
+            + " can not support join type: " + join.getJoinType());
+      }
+      operator.unparse(writer, call, leftPrec, rightPrec);
+      break;
     case ROW:
       // Remove the ROW keyword if the dialect does not allow that.
       if (!getConformance().allowExplicitRowValueConstructor()) {
@@ -1174,6 +1182,10 @@ public class SqlDialect {
    * Returns whether this dialect support the specified type of join.
    */
   public boolean supportsJoinType(JoinRelType joinType) {
+    return true;
+  }
+
+  public boolean supportsJoinType(JoinType joinType) {
     return true;
   }
 

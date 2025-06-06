@@ -9894,6 +9894,16 @@ class RelToSqlConverterTest {
   }
 
   /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7050">[CALCITE-7050]
+   * Invalid unparse for FULL JOIN in MySQLDialect</a>. */
+  @Test void testcMysqlFullJoin() {
+    String sql = "select *\n"
+        + "from \"store\" as s\n"
+        + "full join \"employee\" as e on true\n";
+    sql(sql).withMysql().throws_("MysqlSqlDialect can not support join type: FULL");
+  }
+
+  /** Test case for
    * <a href="https://issues.apache.org/jira/browse/CALCITE-6804">[CALCITE-6804]
    * Ensures that alias for the left side of anti join is being propagated.</a>. */
   @Test void testAntiJoinWithComplexInput() {

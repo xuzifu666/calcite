@@ -24,22 +24,7 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
-import org.apache.calcite.sql.SqlAlienSystemTypeNameSpec;
-import org.apache.calcite.sql.SqlBasicCall;
-import org.apache.calcite.sql.SqlBasicFunction;
-import org.apache.calcite.sql.SqlBasicTypeNameSpec;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlDataTypeSpec;
-import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlIntervalQualifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlSelect;
-import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.fun.SqlCase;
 import org.apache.calcite.sql.fun.SqlInternalOperators;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
@@ -464,6 +449,10 @@ public class MysqlSqlDialect extends SqlDialect {
 
   @Override public boolean supportsJoinType(JoinRelType joinType) {
     return joinType != JoinRelType.FULL;
+  }
+
+  @Override public boolean supportsJoinType(JoinType joinType) {
+    return joinType != JoinType.FULL;
   }
 
   private static TimeUnit validate(TimeUnit timeUnit) {
