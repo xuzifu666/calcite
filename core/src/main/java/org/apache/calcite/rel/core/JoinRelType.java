@@ -16,6 +16,9 @@
  */
 package org.apache.calcite.rel.core;
 
+import org.apache.calcite.sql.JoinType;
+import org.apache.calcite.sql.SqlJoin;
+
 import org.apiguardian.api.API;
 
 import java.util.Locale;
@@ -118,6 +121,28 @@ public enum JoinRelType {
    */
   public boolean isOuterJoin() {
     return (this == LEFT) || (this == RIGHT) || (this == FULL) || (this == LEFT_ASOF);
+  }
+
+  /**
+   * Convert JoinType to JoinRelType
+   */
+  public static JoinRelType convertToRelType(JoinType joinType) {
+    switch (joinType) {
+    case INNER:
+      return JoinRelType.INNER;
+    case LEFT:
+      return JoinRelType.LEFT;
+    case RIGHT:
+      return JoinRelType.RIGHT;
+    case FULL:
+      return JoinRelType.FULL;
+    case ASOF:
+      return JoinRelType.ASOF;
+    case LEFT_ASOF:
+      return JoinRelType.LEFT_ASOF;
+    default:
+      throw new RuntimeException("Can not support convert for " + joinType.toString());
+    }
   }
 
   /**

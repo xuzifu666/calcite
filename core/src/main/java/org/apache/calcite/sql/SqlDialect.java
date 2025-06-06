@@ -450,7 +450,7 @@ public class SqlDialect {
     switch (call.getKind()) {
     case JOIN:
       SqlJoin join = (SqlJoin) call;
-      if (!supportsJoinType(join.getJoinType())) {
+      if (!supportsJoinType(JoinRelType.convertToRelType(join.getJoinType()))) {
         throw new RuntimeException(this.getClass().getSimpleName()
             + " can not support join type: " + join.getJoinType());
       }
@@ -1182,10 +1182,6 @@ public class SqlDialect {
    * Returns whether this dialect support the specified type of join.
    */
   public boolean supportsJoinType(JoinRelType joinType) {
-    return true;
-  }
-
-  public boolean supportsJoinType(JoinType joinType) {
     return true;
   }
 

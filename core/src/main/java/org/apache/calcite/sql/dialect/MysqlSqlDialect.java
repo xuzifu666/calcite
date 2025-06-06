@@ -467,10 +467,6 @@ public class MysqlSqlDialect extends SqlDialect {
     return joinType != JoinRelType.FULL;
   }
 
-  @Override public boolean supportsJoinType(JoinType joinType) {
-    return joinType != JoinType.FULL;
-  }
-
   private static TimeUnit validate(TimeUnit timeUnit) {
     switch (timeUnit) {
     case MICROSECOND:
