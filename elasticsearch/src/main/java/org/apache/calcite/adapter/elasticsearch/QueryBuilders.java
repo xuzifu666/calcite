@@ -21,6 +21,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.util.Objects.requireNonNull;
 
@@ -138,6 +140,16 @@ class QueryBuilders {
    */
   static MatchQueryBuilder matchQuery(String name, Object value) {
     return new MatchQueryBuilder(name, value);
+  }
+
+  /**
+   * A Query that matches documents by wildcard.
+   *
+   * @param name  The name of the field
+   * @param wildcard The value of the wildcard
+   */
+  static WildcardQueryBuilder wildcardQuery(String name, String wildcard) {
+    return new WildcardQueryBuilder(name, wildcard);
   }
 
   /**
@@ -546,6 +558,36 @@ class QueryBuilders {
       generator.writeStartObject();
       generator.writeFieldName("filter");
       builder.writeJson(generator);
+      generator.writeEndObject();
+      generator.writeEndObject();
+    }
+  }
+
+  /**
+   * A Query that matches documents by a ElasticSearch wildcard.
+   */
+  static class WildcardQueryBuilder extends QueryBuilder {
+    private final String fieldName;
+    private final String value;
+
+    WildcardQueryBuilder(String fieldName, String value) {
+      this.fieldName = fieldName;
+      // replace % to * and _ to ? for sql with like
+      this.value = replaceWildcard(replaceWildcard(value, "%", "*"), "_", "?");
+    }
+
+    private static String replaceWildcard(String value, String source, String target) {
+      Pattern pattern = Pattern.compile(source);
+      Matcher matcher = pattern.matcher(value);
+      return matcher.replaceAll(target);
+    }
+
+    @Override void writeJson(JsonGenerator generator) throws IOException {
+      generator.writeStartObject();
+      generator.writeFieldName("wildcard");
+      generator.writeStartObject();
+      generator.writeFieldName(fieldName);
+      writeObject(generator, value);
       generator.writeEndObject();
       generator.writeEndObject();
     }

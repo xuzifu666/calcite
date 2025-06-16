@@ -219,6 +219,50 @@ class ElasticSearchAdapterTest {
     calciteAssert()
         .query("select * from elastic.zips limit 0")
         .returnsCount(0);
+
+    // test for %
+    calciteAssert()
+        .query("select * from elastic.zips where _MAP['city'] like 'BROOK%' limit 10")
+        .returnsOrdered(
+            "_MAP={id=11226, city=BROOKLYN, loc=[-73.956985, 40.646694], pop=111396, state=NY}")
+        .returnsCount(1);
+
+    calciteAssert()
+        .query("select * from elastic.zips where _MAP['city'] like '%ROOK%' limit 10")
+        .returnsOrdered(
+            "_MAP={id=11226, city=BROOKLYN, loc=[-73.956985, 40.646694], pop=111396, state=NY}")
+        .returnsCount(1);
+
+    calciteAssert()
+        .query("select * from elastic.zips where _MAP['city'] not like 'BROOK%' limit 1")
+        .returnsOrdered(
+            "_MAP={id=01701, city=FRAMINGHAM, loc=[-71.425486, 42.300665],"
+                + " pop=65046, state=MA}")
+        .returnsCount(1);
+
+    // test for _
+    calciteAssert()
+        .query("select * from elastic.zips where _MAP['city'] like 'BROOKLY_' limit 10")
+        .returnsOrdered(
+            "_MAP={id=11226, city=BROOKLYN, loc=[-73.956985, 40.646694], pop=111396, state=NY}")
+        .returnsCount(1);
+
+    calciteAssert()
+        .query("select * from elastic.zips where _MAP['city'] like 'BROOKL_' limit 10")
+        .returnsOrdered("")
+        .returnsCount(0);
+
+    calciteAssert()
+        .query("select * from elastic.zips where _MAP['city'] like 'BROOKL__' limit 10")
+        .returnsOrdered(
+            "_MAP={id=11226, city=BROOKLYN, loc=[-73.956985, 40.646694], pop=111396, state=NY}")
+        .returnsCount(1);
+
+    calciteAssert()
+        .query("select * from elastic.zips where _MAP['city'] like '_ROOKLY_' limit 10")
+        .returnsOrdered(
+            "_MAP={id=11226, city=BROOKLYN, loc=[-73.956985, 40.646694], pop=111396, state=NY}")
+        .returnsCount(1);
   }
 
   @Test void testAlias() {
