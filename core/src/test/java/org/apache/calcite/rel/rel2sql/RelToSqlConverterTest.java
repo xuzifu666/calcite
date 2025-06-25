@@ -6069,6 +6069,21 @@ class RelToSqlConverterTest {
     sql(query).withLibrary(SqlLibrary.POSTGRESQL).ok(expected);
   }
 
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7088">[CALCITE-7088]
+   * X LIKE '%%' should simply to X=X</a>. */
+  @Test void testLikeSimply() {
+    String query = "select \"product_name\" like '%' from \"product\"";
+    String expected = "SELECT TRUE\n"
+        + "FROM \"foodmart\".\"product\"";
+    sql(query).ok(expected);
+
+    String query1 = "select \"product_name\" like '%%' from \"product\"";
+    String expected1 = "SELECT TRUE\n"
+        + "FROM \"foodmart\".\"product\"";
+    sql(query1).ok(expected1);
+  }
+
   @Test void testMatchRecognizePatternExpression() {
     String sql = "select *\n"
         + "  from \"product\" match_recognize\n"

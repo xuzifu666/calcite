@@ -500,8 +500,9 @@ public class RexSimplify {
   private RexNode simplifyLike(RexCall e, RexUnknownAs unknownAs) {
     if (e.operands.get(1) instanceof RexLiteral) {
       final RexLiteral literal = (RexLiteral) e.operands.get(1);
-      if ("%".equals(literal.getValueAs(String.class))) {
-        // "x LIKE '%'" simplifies to "x = x"
+      String likeStr = requireNonNull(literal.getValueAs(String.class));
+      if (withSameChar(likeStr, '%')) {
+        // "x LIKE '%'" or "x LIKE '%...'" simplifies to "x = x"
         final RexNode x = e.operands.get(0);
         return simplify(
             rexBuilder.makeCall(
@@ -509,6 +510,15 @@ public class RexSimplify {
       }
     }
     return simplifyGenericNode(e);
+  }
+
+  private boolean withSameChar(String str, Character c) {
+    for (Character character : str.toCharArray()) {
+      if (!character.equals(c)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   // e must be a comparison (=, >, >=, <, <=, !=)
