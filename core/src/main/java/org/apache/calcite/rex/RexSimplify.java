@@ -529,8 +529,7 @@ public class RexSimplify {
         }
         String value = head + likeStr.substring(left, right + 1) + tail;
         RexLiteral rexLiteral = rexBuilder.makeLiteral(value);
-        ArrayList<RexNode> rexNodes = new ArrayList<>();
-        rexNodes.addAll(e.operands);
+        ArrayList<RexNode> rexNodes = new ArrayList<>(e.operands);
         rexNodes.set(1, rexLiteral);
         e = (RexCall) rexBuilder
                 .makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
