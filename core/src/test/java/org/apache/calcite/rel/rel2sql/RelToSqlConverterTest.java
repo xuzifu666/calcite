@@ -108,6 +108,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -6067,21 +6068,6 @@ class RelToSqlConverterTest {
         + "FROM \"foodmart\".\"product\"\n"
         + "WHERE \"product_name\" NOT ILIKE 'abC'";
     sql(query).withLibrary(SqlLibrary.POSTGRESQL).ok(expected);
-  }
-
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-7088">[CALCITE-7088]
-   * X LIKE '%%' should simply to X=X</a>. */
-  @Test void testLikeSimply() {
-    String query = "select \"product_name\" like '%' from \"product\"";
-    String expected = "SELECT TRUE\n"
-        + "FROM \"foodmart\".\"product\"";
-    sql(query).ok(expected);
-
-    String query1 = "select \"product_name\" like '%%' from \"product\"";
-    String expected1 = "SELECT TRUE\n"
-        + "FROM \"foodmart\".\"product\"";
-    sql(query1).ok(expected1);
   }
 
   @Test void testMatchRecognizePatternExpression() {
