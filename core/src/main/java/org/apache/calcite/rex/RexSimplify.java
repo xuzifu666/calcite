@@ -536,15 +536,6 @@ public class RexSimplify {
     return simplifyGenericNode(e);
   }
 
-  private boolean withSameChar(String str, Character c) {
-    for (Character character : str.toCharArray()) {
-      if (!character.equals(c)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   // e must be a comparison (=, >, >=, <, <=, !=)
   private RexNode simplifyComparison(RexCall e, RexUnknownAs unknownAs) {
     //noinspection unchecked
