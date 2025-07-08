@@ -530,8 +530,8 @@ public class RexSimplify {
         ArrayList<RexNode> rexNodes = new ArrayList<>();
         rexNodes.addAll(e.operands);
         rexNodes.set(1, rexLiteral);
-        e = (RexCall) rexBuilder.makeCall(e.getParserPosition(), SqlStdOperatorTable.LIKE,
-            rexNodes);
+        e =
+            (RexCall) rexBuilder.makeCall(e.getParserPosition(), SqlStdOperatorTable.LIKE, rexNodes);
       }
     }
     return simplifyGenericNode(e);
