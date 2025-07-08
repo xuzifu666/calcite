@@ -515,9 +515,8 @@ public class RexSimplify {
         // Simplify "x LIKE '%%a%%%'" to "x LIKE '%a%'"
         ArrayList<RexNode> rexNodes = new ArrayList<>(e.operands);
         rexNodes.set(1, rexBuilder.makeLiteral(value));
-        e = (RexCall) rexBuilder
-            .makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
-        return simplify(e);
+        return simplify((RexCall) rexBuilder
+            .makeCall(e.getParserPosition(), e.getOperator(), rexNodes));
       }
     }
     return simplifyGenericNode(e);
