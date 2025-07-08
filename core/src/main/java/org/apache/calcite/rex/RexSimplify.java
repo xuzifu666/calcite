@@ -517,6 +517,7 @@ public class RexSimplify {
         rexNodes.set(1, rexBuilder.makeLiteral(value));
         e = (RexCall) rexBuilder
             .makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
+        return simplify(e);
       }
     }
     return simplifyGenericNode(e);
