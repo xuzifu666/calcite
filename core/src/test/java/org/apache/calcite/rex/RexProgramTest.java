@@ -3940,7 +3940,7 @@ class RexProgramTest extends RexProgramTestBase {
    * <a href="https://issues.apache.org/jira/browse/CALCITE-4094">[CALCITE-4094]
    * RexSimplify should simplify more always true OR expressions</a>,
    * <a href="https://issues.apache.org/jira/browse/CALCITE-7088">[CALCITE-7088]
-   * X LIKE '%%' should simply to X=X</a>.
+   * X LIKE '%%'(with any number of '%') should simplify to X=X</a>.
    * */
   @Test void testSimplifyLike() {
     final RexNode ref = input(tVarchar(true, 10), 0);
