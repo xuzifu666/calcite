@@ -65,6 +65,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 import static org.apache.calcite.rex.RexUnknownAs.FALSE;
@@ -501,7 +502,7 @@ public class RexSimplify {
     if (e.operands.get(1) instanceof RexLiteral) {
       final RexLiteral literal = (RexLiteral) e.operands.get(1);
       String likeStr = requireNonNull(literal.getValueAs(String.class));
-      if (withSameChar(likeStr, '%')) {
+      if (Pattern.matches("%+", likeStr)) {
         // "x LIKE '%'" or "x LIKE '%...'" simplifies to "x = x"
         final RexNode x = e.operands.get(0);
         return simplify(
