@@ -511,18 +511,20 @@ public class RexSimplify {
       } else if (likeStr.length() > 0) {
         // such as LIKE '%%a%%' should simplify to '%a%'
         String head = likeStr.substring(0, 1).equals("%") ? "%" : "";
-        String tail = likeStr.substring(likeStr.length() - 1, likeStr.length()).equals("%") ?
-            "%" : "";
+        String tail = likeStr.substring(likeStr.length() - 1, likeStr.length()).equals("%")
+            ? "%" : "";
         int left = 0;
-        int right = likeStr.length() -1;
+        int right = likeStr.length() - 1;
         for (int index = 0; index < likeStr.length(); index++) {
           if (!likeStr.substring(index, index + 1).equals("%")) {
             left = index;
+            break;
           }
         }
         for (int index = likeStr.length() - 1; index >= 0; index--) {
           if (!likeStr.substring(index, index + 1).equals("%")) {
             right = index;
+            break;
           }
         }
         String value = head + likeStr.substring(left, right + 1) + tail;
@@ -530,8 +532,8 @@ public class RexSimplify {
         ArrayList<RexNode> rexNodes = new ArrayList<>();
         rexNodes.addAll(e.operands);
         rexNodes.set(1, rexLiteral);
-        e =
-            (RexCall) rexBuilder.makeCall(e.getParserPosition(), SqlStdOperatorTable.LIKE, rexNodes);
+        e = (RexCall) rexBuilder
+                .makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
       }
     }
     return simplifyGenericNode(e);
