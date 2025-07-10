@@ -511,48 +511,54 @@ public class RexSimplify {
             rexBuilder.makeCall(
                 e.getParserPosition(), SqlStdOperatorTable.EQUALS, x, x), unknownAs);
       }
-      if (!value.equals(likeStr) && e.operands.size() == 2) {
-        // Simplify "x LIKE '%%a%%%'" to "x LIKE '%a%'"
+      // simplify "x LIKE '%%\%%a%%%'" to "x LIKE '%\%%a%'", default escape is '\'
+      if (e.operands.size() == 2) {
         ArrayList<RexNode> rexNodes = new ArrayList<>(e.operands);
-        rexNodes.set(1, rexBuilder.makeLiteral(value));
-        return simplify(rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), rexNodes));
+        rexNodes.set(1, rexBuilder.makeLiteral(simplifyLikeString(likeStr, "\\", "%")));
+        e = (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
       }
-      // such as A like '%%#%%A%%' escape '#' should simplify to A like '%#%%A%' escape '#'
       if (e.operands.size() == 3 && e.operands.get(2) instanceof RexLiteral) {
         final RexLiteral escapeLiteral = (RexLiteral) e.operands.get(2);
         String escape = requireNonNull(escapeLiteral.getValueAs(String.class));
-        ArrayList<String> result = new ArrayList<>();
-        int escapeCount = 0;
-        int wildcardCount = 0;
-        for (int index = 0; index < likeStr.length(); index++) {
-          String str = likeStr.substring(index, index + 1);
-          if (str.equals(escape)) {
-            result.add(str);
-            escapeCount++;
-            wildcardCount = 0;
-            continue;
-          }
-          if (str.equals("%")) {
-            if (escapeCount % 2 == 1) {
-              result.add("%");
-            } else if (wildcardCount == 0) {
-              result.add("%");
-              wildcardCount++;
-            }
-            escapeCount = 0;
-            continue;
-          }
-          result.add(str);
-          escapeCount = 0;
-          wildcardCount = 0;
-        }
-        value = String.join("", result);
         ArrayList<RexNode> rexNodes = new ArrayList<>(e.operands);
-        rexNodes.set(1, rexBuilder.makeLiteral(value));
+        rexNodes.set(1, rexBuilder.makeLiteral(simplifyLikeString(likeStr, escape, "%")));
         e = (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
       }
     }
     return simplifyGenericNode(e);
+  }
+
+  /**
+   * Simplifies like string with escape.
+   * A like '%%#%%A%%' escape '#' should simplify to A like '%#%%A%' escape '#'.
+   */
+  private String simplifyLikeString(String content, String escape, String wildcard) {
+    ArrayList<String> result = new ArrayList<>();
+    int escapeCount = 0;
+    int wildcardCount = 0;
+    for (int index = 0; index < content.length(); index++) {
+      String str = content.substring(index, index + 1);
+      if (str.equals(escape)) {
+        result.add(str);
+        escapeCount++;
+        wildcardCount = 0;
+        continue;
+      }
+      if (str.equals(wildcard)) {
+        if (escapeCount % 2 == 1) {
+          result.add(wildcard);
+        } else if (wildcardCount == 0) {
+          result.add(wildcard);
+          wildcardCount++;
+        }
+        escapeCount = 0;
+        continue;
+      }
+      result.add(str);
+      escapeCount = 0;
+      wildcardCount = 0;
+    }
+    return String.join("", result);
   }
 
   // e must be a comparison (=, >, >=, <, <=, !=)

@@ -3964,6 +3964,7 @@ class RexProgramTest extends RexProgramTestBase {
     checkSimplifyUnchanged(like(ref, literal("%A")));
     checkSimplify(like(ref, literal("%%A")), "LIKE($0, '%A')");
     checkSimplify(like(ref, literal("%%A%%%")), "LIKE($0, '%A%')");
+    checkSimplify(like(ref, literal("%%\\%%A\\%%%%%")), "LIKE($0, '%\\%%A\\%%')");
     checkSimplify(like(ref, literal("%%A"), literal("#")), "LIKE($0, '%A', '#')");
     checkSimplify(like(ref, literal("%%#%%A%%"), literal("#")),
         "LIKE($0, '%#%%A%', '#')");
@@ -3971,8 +3972,8 @@ class RexProgramTest extends RexProgramTestBase {
         "LIKE($0, '%#%#%A%', '#')");
     checkSimplify(like(ref, literal("###%%#%#%A%%##%%%"), literal("#")),
         "LIKE($0, '###%%#%#%A%##%', '#')");
-    checkSimplify(like(ref, literal("###%%#%#%A#%%%#%A%%##%%%"), literal("#")),
-        "LIKE($0, '###%%#%#%A#%%#%A%##%', '#')");
+    checkSimplify(like(ref, literal("###%%#%#%A#%%%#%A%%###%%%"), literal("#")),
+        "LIKE($0, '###%%#%#%A#%%#%A%###%%', '#')");
     checkSimplifyUnchanged(like(ref, literal("A"), literal("#")));
     checkSimplifyUnchanged(like(ref, literal("%A"), literal("#")));
 
