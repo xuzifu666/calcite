@@ -513,14 +513,16 @@ public class RexSimplify {
       }
       // simplify "x LIKE '%%\%%a%%%'" to "x LIKE '%\%%a%'", default escape is '\'
       if (e.operands.size() == 2) {
-        e =
-            (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), e.operands.get(0), rexBuilder.makeLiteral(simplifyLikeString(likeStr, '\\', '%')));
+        e = (RexCall) rexBuilder
+            .makeCall(e.getParserPosition(), e.getOperator(), e.operands.get(0),
+                rexBuilder.makeLiteral(simplifyLikeString(likeStr, '\\', '%')));
       }
       if (e.operands.size() == 3 && e.operands.get(2) instanceof RexLiteral) {
         final RexLiteral escapeLiteral = (RexLiteral) e.operands.get(2);
         Character escape = requireNonNull(escapeLiteral.getValueAs(Character.class));
-        e =
-            (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), e.operands.get(0), rexBuilder.makeLiteral(simplifyLikeString(likeStr, escape, '%')),
+        e = (RexCall) rexBuilder
+            .makeCall(e.getParserPosition(), e.getOperator(), e.operands.get(0),
+                rexBuilder.makeLiteral(simplifyLikeString(likeStr, escape, '%')),
                 escapeLiteral);
       }
     }
