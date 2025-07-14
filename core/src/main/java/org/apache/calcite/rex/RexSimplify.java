@@ -513,16 +513,15 @@ public class RexSimplify {
       }
       // simplify "x LIKE '%%\%%a%%%'" to "x LIKE '%\%%a%'", default escape is '\'
       if (e.operands.size() == 2) {
-        ArrayList<RexNode> rexNodes = new ArrayList<>(e.operands);
-        rexNodes.set(1, rexBuilder.makeLiteral(simplifyLikeString(likeStr, "\\", "%")));
-        e = (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
+        e =
+            (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), e.operands.get(0), rexBuilder.makeLiteral(simplifyLikeString(likeStr, '\\', '%')));
       }
       if (e.operands.size() == 3 && e.operands.get(2) instanceof RexLiteral) {
         final RexLiteral escapeLiteral = (RexLiteral) e.operands.get(2);
-        String escape = requireNonNull(escapeLiteral.getValueAs(String.class));
-        ArrayList<RexNode> rexNodes = new ArrayList<>(e.operands);
-        rexNodes.set(1, rexBuilder.makeLiteral(simplifyLikeString(likeStr, escape, "%")));
-        e = (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), rexNodes);
+        Character escape = requireNonNull(escapeLiteral.getValueAs(Character.class));
+        e =
+            (RexCall) rexBuilder.makeCall(e.getParserPosition(), e.getOperator(), e.operands.get(0), rexBuilder.makeLiteral(simplifyLikeString(likeStr, escape, '%')),
+                escapeLiteral);
       }
     }
     return simplifyGenericNode(e);
@@ -532,33 +531,33 @@ public class RexSimplify {
    * Simplifies like string with escape.
    * A like '%%#%%A%%' escape '#' should simplify to A like '%#%%A%' escape '#'.
    */
-  private String simplifyLikeString(String content, String escape, String wildcard) {
-    ArrayList<String> result = new ArrayList<>();
+  private String simplifyLikeString(String content, char escape, char wildcard) {
     int escapeCount = 0;
     int wildcardCount = 0;
+    StringBuilder builder = new StringBuilder();
     for (int index = 0; index < content.length(); index++) {
-      String str = content.substring(index, index + 1);
-      if (str.equals(escape)) {
-        result.add(str);
+      char c = content.charAt(index);
+      if (c == escape) {
+        builder.append(c);
         escapeCount++;
         wildcardCount = 0;
         continue;
       }
-      if (str.equals(wildcard)) {
+      if (c == wildcard) {
         if (escapeCount % 2 == 1) {
-          result.add(wildcard);
+          builder.append(wildcard);
         } else if (wildcardCount == 0) {
-          result.add(wildcard);
+          builder.append(wildcard);
           wildcardCount++;
         }
         escapeCount = 0;
         continue;
       }
-      result.add(str);
+      builder.append(c);
       escapeCount = 0;
       wildcardCount = 0;
     }
-    return String.join("", result);
+    return builder.toString();
   }
 
   // e must be a comparison (=, >, >=, <, <=, !=)
