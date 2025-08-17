@@ -19,7 +19,7 @@ package org.apache.calcite;
 import java.util.ArrayList;
 
 /**
- * Demo.
+ * Demo 1.
  */
 public class Demo {
   private Demo() {
