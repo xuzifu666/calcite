@@ -53,10 +53,7 @@ dependencies {
         // dependency on it during compilation
         apiv("com.alibaba.database:innodb-java-reader")
         apiv("com.beust:jcommander")
-        apiv("org.checkerframework:checker-qual", "checkerframework")
-        apiv("com.datastax.oss:java-driver-core", "cassandra-java-driver-core")
-        apiv("com.esri.geometry:esri-geometry-api")
-        apiv("com.fasterxml.jackson.core:jackson-databind")
+        apiv("org.apache.cassandra:java-driver-core", "cassandra-java-driver-core")
         apiv("com.github.kstyrc:embedded-redis")
         apiv("com.github.stephenc.jcip:jcip-annotations")
         apiv("com.google.errorprone:error_prone_annotations", "errorprone")
