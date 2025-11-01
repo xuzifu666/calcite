@@ -26,12 +26,14 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexChecker;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Litmus;
 
 import org.apiguardian.api.API;
@@ -120,6 +122,18 @@ public abstract class Filter extends SingleRel {
     if (RexUtil.isNullabilityCast(getCluster().getTypeFactory(), condition)) {
       return litmus.fail("Cast for just nullability not allowed");
     }
+
+    final RelDataType conditionType = condition.getType();
+    if (!conditionType.isNullable() && conditionType.getSqlTypeName() != SqlTypeName.BOOLEAN) {
+      return litmus.fail("Filter condition must have type BOOLEAN, got " + conditionType);
+    }
+    if (conditionType.isNullable()
+        && conditionType.getSqlTypeName() != SqlTypeName.BOOLEAN
+        && conditionType.getSqlTypeName() != SqlTypeName.NULL) {
+      return litmus.fail("Filter condition must have type BOOLEAN or NULL, got "
+          + conditionType);
+    }
+
     final RexChecker checker =
         new RexChecker(getInput().getRowType(), context, litmus);
     condition.accept(checker);

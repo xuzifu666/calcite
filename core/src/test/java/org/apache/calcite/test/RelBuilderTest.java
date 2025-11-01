@@ -4688,6 +4688,91 @@ public class RelBuilderTest {
             "empid=150; name=Sebastian");
   }
 
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-1440">[CALCITE-1440]
+   * Combine operator - combines multiple SQL queries into a single plan</a>. */
+  @Test void testCombineExplain() {
+    final RelBuilder builder = RelBuilder.create(config().build());
+
+    // Query 1: Simple filter on department 10
+    RelNode query1 = builder
+        .scan("EMP")
+        .filter(builder.equals(builder.field("DEPTNO"), builder.literal(10)))
+        .project(builder.field("ENAME"), builder.field("SAL"))
+        .build();
+
+    // Query 2: Aggregate to get average salary by department
+    RelNode query2 = builder
+        .scan("EMP")
+        .aggregate(builder.groupKey("DEPTNO"),
+            builder.avg(false, "AVG_SAL", builder.field("SAL")))
+        .build();
+
+    // Query 3: Find all departments
+    RelNode query3 = builder
+        .scan("DEPT")
+        .project(builder.field("DEPTNO"), builder.field("DNAME"))
+        .build();
+
+    // Combine all three queries
+    RelNode combined = builder.combine(query1, query2, query3).build();
+
+    // Test that the combine node is of the correct type
+    assertThat(combined, instanceOf(Combine.class));
+    Combine combineNode = (Combine) combined;
+    assertThat(combineNode.getInputs(), hasSize(3));
+
+    String expectedPlan =
+          "Combine\n"
+        + "  LogicalProject(ENAME=[$1], SAL=[$5])\n"
+        + "    LogicalFilter(condition=[=($7, 10)])\n"
+        + "      LogicalTableScan(table=[[scott, EMP]])\n"
+        + "  LogicalAggregate(group=[{7}], AVG_SAL=[AVG($5)])\n"
+        + "    LogicalTableScan(table=[[scott, EMP]])\n"
+        + "  LogicalProject(DEPTNO=[$0], DNAME=[$1])\n"
+        + "    LogicalTableScan(table=[[scott, DEPT]])\n";
+
+    // Test that explain() works correctly for Combine
+    String explanation = combined.explain();
+    assertThat(explanation, containsStringLinux(expectedPlan));
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6688">[CALCITE-6688]
+   * Allow operators of SqlKind.SYMMETRICAL to be reversed</a>. */
+  @Test void testSymmetricalOperatorsCanBeReversed() {
+    final RelBuilder builder = RelBuilder.create(config().build());
+    final RelDataType type = builder.getTypeFactory().createUnknownType();
+    final RexInputRef r1 = new RexInputRef(1, type);
+    final RexInputRef r2 = new RexInputRef(2, type);
+    final List<SqlOperator> symmetricOperators =
+        SqlLibraryOperatorTableFactory.INSTANCE.getOperatorTable(
+            SqlLibrary.values()).getOperatorList().stream().filter(
+                op -> op.isSymmetrical()).collect(Collectors.toList());
+
+    for (SqlOperator op : symmetricOperators) {
+      RexNode c1 = builder.call(op, r1, r2);
+      RexNode c2 = builder.call(op, r2, r1);
+
+      assertDoesNotThrow(() -> op.reverse());
+      assertTrue(c1.equals(c2));
+    }
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7258">[CALCITE-7258]
+   * RelBuilder.filter should throw if the condition is not BOOLEAN</a>. */
+  @Test void testFilterWithNonBooleanLiteralCondition() {
+    final RelBuilder builder = RelBuilder.create(config().build());
+    try {
+      builder.scan("EMP")
+          .filter(builder.literal("foo"))
+          .build();
+    } catch (Error e) {
+      assertTrue(e.getMessage().contains("Filter condition must have type BOOLEAN"));
+    }
+  }
+
   /** Operand to a user-defined function. */
   private interface Arg {
     String name();
