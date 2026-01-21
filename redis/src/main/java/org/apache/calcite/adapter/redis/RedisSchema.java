@@ -77,7 +77,7 @@ class RedisSchema extends AbstractSchema {
   public RedisTableFieldInfo getTableFieldInfo(String tableName) {
     RedisTableFieldInfo tableFieldInfo = new RedisTableFieldInfo();
     List<LinkedHashMap<String, Object>> fields = new ArrayList<>();
-    String dataFormat = "";
+    String df = "";
     String keyDelimiter = "";
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<JsonCustomTable> jsonCustomTables =
@@ -92,7 +92,7 @@ class RedisSchema extends AbstractSchema {
         if (map.get("fields") == null) {
           throw new RuntimeException("fields is null");
         }
-        dataFormat = map.get("dataFormat").toString();
+        df = map.get("dataFormat").toString();
         fields = (List<LinkedHashMap<String, Object>>) map.get("fields");
         if (map.get("keyDelimiter") != null) {
           keyDelimiter = map.get("keyDelimiter").toString();
@@ -101,7 +101,7 @@ class RedisSchema extends AbstractSchema {
       }
     }
     tableFieldInfo.setTableName(tableName);
-    tableFieldInfo.setDataFormat(dataFormat);
+    tableFieldInfo.setDataFormat(df);
     tableFieldInfo.setFields(fields);
     if (StringUtils.isNotEmpty(keyDelimiter)) {
       tableFieldInfo.setKeyDelimiter(keyDelimiter);
