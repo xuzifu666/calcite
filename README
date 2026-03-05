@@ -8,7 +8,7 @@ site/_docs/history.md file.
 The LICENSE and NOTICE files contain license information.
 
 Check "Building from a source distribution" section
-in site/_docs/howto.md for instructions on how to build the project.
+in the site/_docs/howto.md for instructions on how to build the project.
 
 Further information about Apache Calcite is available at its web site,
 http://calcite.apache.org.
