@@ -7505,7 +7505,7 @@ SqlCall MatchRecognizeCallWithModifier() :
 {
     final Span s;
     final SqlOperator runningOp;
-    final SqlNode func;
+    final SqlNode e;
 }
 {
     (
@@ -7514,8 +7514,8 @@ SqlCall MatchRecognizeCallWithModifier() :
         <FINAL> { runningOp = SqlStdOperatorTable.FINAL; }
     )
     { s = span(); }
-    func = NamedFunctionCall() {
-        return runningOp.createCall(s.end(func), func);
+    e = Expression3(ExprContext.ACCEPT_NON_QUERY) {
+        return runningOp.createCall(s.end(e), e);
     }
 }
 

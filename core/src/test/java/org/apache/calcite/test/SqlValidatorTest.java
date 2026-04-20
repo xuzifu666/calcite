@@ -2655,6 +2655,53 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .rewritesTo(expected8);
     sql(expected8)
         .withParserConfig(c -> c.withQuoting(Quoting.BACK_TICK)).ok();
+
+    // Test cases for [CALCITE-7465] https://issues.apache.org/jira/browse/CALCITE-7465
+    // Unparse of MATCH_RECOGNIZE MEASURES might produce unparsable sql
+    // Accepted by Snowflake (it doesn't accept FINAL or RUNNING before non function measure)
+    final String sql9 = "SELECT *\n"
+        + "FROM emp\n"
+        + "MATCH_RECOGNIZE (\n"
+        + "  MEASURES\n"
+        + "    A.deptno AS deptno\n"
+        + "  PATTERN (A B)\n"
+        + "  DEFINE\n"
+        + "    A AS A.empno = 123\n"
+        + ")";
+    final String expected9 = "SELECT `EXPR$0`.`DEPTNO`\n"
+        + "FROM `CATALOG`.`SALES`.`EMP` AS `EMP` MATCH_RECOGNIZE(\n"
+        + "MEASURES FINAL `A`.`DEPTNO` AS `DEPTNO`\n"
+        + "PATTERN (`A` `B`)\n"
+        + "DEFINE `A` AS PREV(`A`.`EMPNO`, 0) = 123) AS `EXPR$0`";
+
+    sql(sql9)
+        .withValidatorConfig(c -> c.withIdentifierExpansion(true))
+        .rewritesTo(expected9);
+    sql(expected9)
+        .withParserConfig(c -> c.withQuoting(Quoting.BACK_TICK)).ok();
+
+    final String sql10 = "SELECT deptno\n"
+        + "FROM emp\n"
+        + "MATCH_RECOGNIZE (\n"
+        + "  MEASURES\n"
+        + "    A.deptno AS deptno\n"
+        + "ALL ROWS PER MATCH\n"
+        + "  PATTERN (A B)\n"
+        + "  DEFINE\n"
+        + "    A AS A.empno = 123\n"
+        + ")";
+    final String expected10 = "SELECT `EXPR$0`.`DEPTNO`\n"
+        + "FROM `CATALOG`.`SALES`.`EMP` AS `EMP` MATCH_RECOGNIZE(\n"
+        + "MEASURES RUNNING `A`.`DEPTNO` AS `DEPTNO`\n"
+        + "ALL ROWS PER MATCH\n"
+        + "PATTERN (`A` `B`)\n"
+        + "DEFINE `A` AS PREV(`A`.`EMPNO`, 0) = 123) AS `EXPR$0`";
+
+    sql(sql10)
+        .withValidatorConfig(c -> c.withIdentifierExpansion(true))
+        .rewritesTo(expected10);
+    sql(expected10)
+        .withParserConfig(c -> c.withQuoting(Quoting.BACK_TICK)).ok();
   }
 
   @Test void testIntervalTimeUnitEnumeration() {
