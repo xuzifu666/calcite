@@ -4596,6 +4596,8 @@ SqlCreate SqlCreate() :
 {
     <CREATE> { s = span(); }
     [
+        // Allow downstream projects implement different syntax, for instance CREATE OR REPLACE
+        LOOKAHEAD(2)
         <OR> <REPLACE> {
             replace = true;
         }
