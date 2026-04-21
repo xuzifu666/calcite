@@ -10060,6 +10060,41 @@ class RelOptRulesTest extends RelOptTestBase {
     sql(sql).withRule(CoreRules.AGGREGATE_REDUCE_FUNCTIONS, CoreRules.PROJECT_MERGE).check();
   }
 
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7484">[CALCITE-7484]
+   * Add AggregateFunctionOfGroupByKeysRule to eliminate redundant
+   * aggregates over GROUP BY keys</a>.
+   */
+  @Test void testAggregateFunctionOfGroupByKeys() {
+    final String sql = "select sal, max(sal) as sal_max, min(sal) as sal_min,\n"
+        + "avg(sal) sal_avg, any_value(sal) as sal_val, first_value(sal) as sal_first,\n"
+        + "last_value(sal) as sal_last\n"
+        + "from emp group by sal, deptno";
+    sql(sql).withRule(CoreRules.AGGREGATE_FUNCTION_OF_GROUP_BY_KEYS).check();
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7484">[CALCITE-7484]
+   * Add AggregateFunctionOfGroupByKeysRule to eliminate redundant
+   * aggregates over GROUP BY keys</a>.
+   */
+  @Test void testAggregateFunctionOfGroupByKeysPartial() {
+    final String sql = "select sal, max(sal) as sal_max, sum(comm) as comm_sum\n"
+        + "from emp group by sal, deptno";
+    sql(sql).withRule(CoreRules.AGGREGATE_FUNCTION_OF_GROUP_BY_KEYS).check();
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7484">[CALCITE-7484]
+   * Add AggregateFunctionOfGroupByKeysRule to eliminate redundant
+   * aggregates over GROUP BY keys</a>.
+   */
+  @Test void testAggregateFunctionOfGroupByKeysNoChange() {
+    final String sql = "select sal, max(comm) as comm_max\n"
+        + "from emp group by sal, deptno";
+    sql(sql).withRule(CoreRules.AGGREGATE_FUNCTION_OF_GROUP_BY_KEYS).checkUnchanged();
+  }
+
   @Test void testReduceAllAggregateFunctions() {
     // configure rule to reduce all used functions
     final RelOptRule rule = AggregateReduceFunctionsRule.Config.DEFAULT

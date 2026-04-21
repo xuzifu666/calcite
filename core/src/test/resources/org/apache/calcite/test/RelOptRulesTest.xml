@@ -333,6 +333,68 @@ LogicalProject(SUM0_MATCH=[$3], SUM_DISTINCT_NOT_MATCH=[$0], COUNT_DISTINCT_MATC
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeys">
+    <Resource name="sql">
+      <![CDATA[select sal, max(sal) as sal_max, min(sal) as sal_min,
+avg(sal) sal_avg, any_value(sal) as sal_val, first_value(sal) as sal_first,
+last_value(sal) as sal_last
+from emp group by sal, deptno]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(SAL=[$0], SAL_MAX=[$2], SAL_MIN=[$3], SAL_AVG=[$4], SAL_VAL=[$5], SAL_FIRST=[$6], SAL_LAST=[$7])
+  LogicalAggregate(group=[{0, 1}], SAL_MAX=[MAX($0)], SAL_MIN=[MIN($0)], SAL_AVG=[AVG($0)], SAL_VAL=[ANY_VALUE($0)], SAL_FIRST=[FIRST_VALUE($0)], SAL_LAST=[LAST_VALUE($0)])
+    LogicalProject(SAL=[$5], DEPTNO=[$7])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(SAL=[$0], SAL_MAX=[$2], SAL_MIN=[$3], SAL_AVG=[$4], SAL_VAL=[$5], SAL_FIRST=[$6], SAL_LAST=[$7])
+  LogicalProject(SAL=[$0], DEPTNO=[$1], SAL0=[$0], SAL1=[$0], SAL2=[$0], SAL3=[$0], SAL4=[$0], SAL5=[$0])
+    LogicalAggregate(group=[{0, 1}])
+      LogicalProject(SAL=[$5], DEPTNO=[$7])
+        LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysNoChange">
+    <Resource name="sql">
+      <![CDATA[select sal, max(comm) as comm_max
+from emp group by sal, deptno]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(SAL=[$0], COMM_MAX=[$2])
+  LogicalAggregate(group=[{0, 1}], COMM_MAX=[MAX($2)])
+    LogicalProject(SAL=[$5], DEPTNO=[$7], COMM=[$6])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysPartial">
+    <Resource name="sql">
+      <![CDATA[select sal, max(sal) as sal_max, sum(comm) as comm_sum
+from emp group by sal, deptno]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(SAL=[$0], SAL_MAX=[$2], COMM_SUM=[$3])
+  LogicalAggregate(group=[{0, 1}], SAL_MAX=[MAX($0)], COMM_SUM=[SUM($2)])
+    LogicalProject(SAL=[$5], DEPTNO=[$7], COMM=[$6])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(SAL=[$0], SAL_MAX=[$2], COMM_SUM=[$3])
+  LogicalProject(SAL=[$0], DEPTNO=[$1], SAL0=[$0], COMM_SUM=[$2])
+    LogicalAggregate(group=[{0, 1}], COMM_SUM=[SUM($2)])
+      LogicalProject(SAL=[$5], DEPTNO=[$7], COMM=[$6])
+        LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAggregateGroupingSetsProjectMerge">
     <Resource name="sql">
       <![CDATA[select x, sum(z), y from (
