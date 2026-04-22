@@ -51,8 +51,6 @@ import java.util.List;
  *   <li>{@code MIN}</li>
  *   <li>{@code AVG}</li>
  *   <li>{@code ANY_VALUE}</li>
- *   <li>{@code FIRST_VALUE}</li>
- *   <li>{@code LAST_VALUE}</li>
  * </ul>
  *
  * @see CoreRules#AGGREGATE_FUNCTION_OF_GROUP_BY_KEYS
@@ -145,8 +143,6 @@ public class AggregateFunctionOfGroupByKeysRule
     case MAX:
     case MIN:
     case ANY_VALUE:
-    case FIRST_VALUE:
-    case LAST_VALUE:
       break;
     default:
       return null;
