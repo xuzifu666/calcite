@@ -95,9 +95,9 @@ public class CoreRules {
 
   /** Rule that eliminates aggregate functions of GROUP BY keys
    * in an {@link Aggregate}. */
-  public static final AggregateFunctionOfGroupByKeysRule
-      AGGREGATE_FUNCTION_OF_GROUP_BY_KEYS =
-      AggregateFunctionOfGroupByKeysRule.Config.DEFAULT.toRule();
+  public static final AggregateReduceFunctionsOnGroupKeysRule
+      AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS =
+      AggregateReduceFunctionsOnGroupKeysRule.Config.DEFAULT.toRule();
 
   /** Rule that matches an {@link Aggregate} on an {@link Aggregate},
    * and merges into a single Aggregate if the top aggregate's group key is a
