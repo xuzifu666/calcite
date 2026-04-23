@@ -8225,17 +8225,21 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
     int firstLastCount;
     int prevNextCount;
     int aggregateCount;
+    int argIndex;
+    int argCount;
 
     PatternValidator(boolean isMeasure) {
-      this(isMeasure, 0, 0, 0);
+      this(isMeasure, 0, 0, 0, 0, 0);
     }
 
     PatternValidator(boolean isMeasure, int firstLastCount, int prevNextCount,
-        int aggregateCount) {
+        int aggregateCount, int index, int argCount) {
       this.isMeasure = isMeasure;
       this.firstLastCount = firstLastCount;
       this.prevNextCount = prevNextCount;
       this.aggregateCount = aggregateCount;
+      this.argIndex = index;
+      this.argCount = argCount;
     }
 
     @Override public Set<String> visit(SqlCall call) {
@@ -8281,13 +8285,14 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             Static.RESOURCE.patternRunningFunctionInDefine(call.toString()));
       }
 
-      for (SqlNode node : operands) {
+      for (int i = 0; i < operands.size(); i++) {
+        SqlNode node = operands.get(i);
         if (node != null) {
           vars.addAll(
               requireNonNull(
                   node.accept(
                       new PatternValidator(isMeasure, firstLastCount, prevNextCount,
-                          aggregateCount)),
+                          aggregateCount, i, operands.size())),
                   () -> "node.accept(PatternValidator) for node " + node));
         }
       }
@@ -8329,7 +8334,13 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
     }
 
     @Override public Set<String> visit(SqlLiteral literal) {
-      return ImmutableSet.of();
+      if ((this.argCount == 1 || this.argIndex < this.argCount - 1)
+          && (this.firstLastCount > 0 || this.prevNextCount > 0)
+          && !SqlUtil.isNull(literal)) {
+        return ImmutableSet.of(requireNonNull(literal.toValue()));
+      } else {
+        return ImmutableSet.of();
+      }
     }
 
     @Override public Set<String> visit(SqlIntervalQualifier qualifier) {

@@ -2702,6 +2702,31 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .rewritesTo(expected10);
     sql(expected10)
         .withParserConfig(c -> c.withQuoting(Quoting.BACK_TICK)).ok();
+
+    // Test cases for [CALCITE-7486] https://issues.apache.org/jira/browse/CALCITE-7486
+    // Operators in MATCH_RECOGNIZE don't support SqlLiterals
+    // Accepted by Snowflake
+    final String sql11 = "SELECT *\n"
+        + "FROM emp\n"
+        + "MATCH_RECOGNIZE (\n"
+        + "  MEASURES\n"
+        + "    FIRST(DOWN.empno + DOWN.deptno + 1) AS bottom_total"
+        + "  PATTERN (DOWN{2,})\n"
+        + "  DEFINE\n"
+        + "    DOWN AS PREV(EMP.EMPNO + 2, 0) < 1"
+        + ")";
+
+    final String expected11 = "SELECT `EXPR$0`.`BOTTOM_TOTAL`\n"
+        + "FROM `CATALOG`.`SALES`.`EMP` AS `EMP` MATCH_RECOGNIZE(\n"
+        + "MEASURES FINAL (FIRST(`DOWN`.`EMPNO` + `DOWN`.`DEPTNO`, 0) + FIRST(1, 0)) AS `BOTTOM_TOTAL`\n"
+        + "PATTERN (`DOWN` { 2, })\n"
+        + "DEFINE `DOWN` AS LAST(`EMP`.`EMPNO`, 0) + PREV(2, 0) < 1) AS `EXPR$0`";
+
+    sql(sql11)
+        .withValidatorConfig(c -> c.withIdentifierExpansion(true))
+        .rewritesTo(expected11);
+    sql(expected11)
+        .withParserConfig(c -> c.withQuoting(Quoting.BACK_TICK)).ok();
   }
 
   @Test void testIntervalTimeUnitEnumeration() {
