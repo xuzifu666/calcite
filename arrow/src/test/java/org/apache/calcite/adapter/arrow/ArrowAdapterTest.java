@@ -27,7 +27,6 @@ import org.apache.calcite.util.Sources;
 import com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -803,24 +802,55 @@ class ArrowAdapterTest {
         .explainContains(plan);
   }
 
-
-  @Disabled("join is not supported yet")
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6299">[CALCITE-6299]
+   * Support JOIN in Arrow adapter</a>. */
   @Test void testJoin() {
     String sql = "select t1.\"intField\", t2.\"intField\" "
         + "from arrowdata t1 join arrowdata t2 on t1.\"intField\" = t2.\"intField\"";
-    String plan = "PLAN=EnumerableJoin(condition=[=($0, $4)], joinType=[inner])\n"
-        + "  ArrowToEnumerableConverter\n"
-        + "    ArrowTableScan(table=[[ARROW, ARROWDATA]], fields=[[0, 1, 2, 3]])\n"
-        + "  ArrowToEnumerableConverter\n"
-        + "    ArrowTableScan(table=[[ARROW, ARROWDATA]], fields=[[0, 1, 2, 3]])\n\n";
-    String result = "intField=0\nintField=1\nintField=2\nintField=3\nintField=4\nintField=5\n";
+    String plan = "PLAN=EnumerableMergeJoin(condition=[=($0, $1)], joinType=[inner])\n"
+        + "  EnumerableSort(sort0=[$0], dir0=[ASC])\n"
+        + "    ArrowToEnumerableConverter\n"
+        + "      ArrowProject(intField=[$0])\n"
+        + "        ArrowTableScan(table=[[ARROW, ARROWDATA]], fields=[[0, 1, 2, 3]])\n"
+        + "  EnumerableSort(sort0=[$0], dir0=[ASC])\n"
+        + "    ArrowToEnumerableConverter\n"
+        + "      ArrowProject(intField=[$0])\n"
+        + "        ArrowTableScan(table=[[ARROW, ARROWDATA]], fields=[[0, 1, 2, 3]])\n\n";
+    StringBuilder resultBuilder = new StringBuilder();
+    for (int i = 0; i < 50; i++) {
+      resultBuilder.append("intField=").append(i).append("; intField=").append(i).append('\n');
+    }
+    String result = resultBuilder.toString();
 
     CalciteAssert.that()
         .with(arrow)
         .query(sql)
-        .limit(1)
         .returns(result)
         .explainContains(plan);
+
+    String sql1 = "select t1.\"intField\", t2.\"intField\" "
+        + "from arrowdata t1 join arrowdata t2 on t1.\"intField\" = t2.\"intField\" "
+        + "where t2.\"intField\" in (1, 2, 3)";
+    String result1 = "intField=1; intField=1\n"
+        + "intField=2; intField=2\n"
+        + "intField=3; intField=3\n";
+    String plan1 = "PLAN=EnumerableMergeJoin(condition=[=($0, $1)], joinType=[inner])\n"
+        + "  EnumerableSort(sort0=[$0], dir0=[ASC])\n"
+        + "    ArrowToEnumerableConverter\n"
+        + "      ArrowProject(intField=[$0])\n"
+        + "        ArrowTableScan(table=[[ARROW, ARROWDATA]], fields=[[0, 1, 2, 3]])\n"
+        + "  EnumerableSort(sort0=[$0], dir0=[ASC])\n"
+        + "    ArrowToEnumerableConverter\n"
+        + "      ArrowProject(intField=[$0])\n"
+        + "        ArrowFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3))])\n"
+        + "          ArrowTableScan(table=[[ARROW, ARROWDATA]], fields=[[0, 1, 2, 3]])\n\n";
+
+    CalciteAssert.that()
+        .with(arrow)
+        .query(sql1)
+        .returns(result1)
+        .explainContains(plan1);
   }
 
   @Test void testAggWithoutAggFunctions() {
