@@ -40,6 +40,75 @@ LogicalProject(SAL=[$0], SAL_MAX=[$2], SAL_MIN=[$3], SAL_AVG=[$4], SAL_VAL=[$5])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysBinaryExpression">
+    <Resource name="sql">
+      <![CDATA[select sal, max(sal * 2) as max_double
+from emp group by sal, deptno]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_DOUBLE=[$2])
+  LogicalAggregate(group=[{0, 1}], MAX_DOUBLE=[MAX($2)])
+    LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[*($5, 2)])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_DOUBLE=[$2])
+  LogicalProject(SAL=[$0], DEPTNO=[$1], $f2=[*($0, 2)])
+    LogicalAggregate(group=[{0, 1}])
+      LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[*($5, 2)])
+        LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysDeterministicExpression">
+    <Resource name="sql">
+      <![CDATA[select sal, max(sal + 1) as max_plus
+from emp group by sal, deptno]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_PLUS=[$2])
+  LogicalAggregate(group=[{0, 1}], MAX_PLUS=[MAX($2)])
+    LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[+($5, 1)])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_PLUS=[$2])
+  LogicalProject(SAL=[$0], DEPTNO=[$1], $f2=[+($0, 1)])
+    LogicalAggregate(group=[{0, 1}])
+      LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[+($5, 1)])
+        LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysMultipleGroupKeys">
+    <Resource name="sql">
+      <![CDATA[select sal, max(sal + deptno) as max_sum
+from emp group by sal, deptno]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_SUM=[$2])
+  LogicalAggregate(group=[{0, 1}], MAX_SUM=[MAX($2)])
+    LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[+($5, $7)])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_SUM=[$2])
+  LogicalProject(SAL=[$0], DEPTNO=[$1], $f2=[+($0, $1)])
+    LogicalAggregate(group=[{0, 1}])
+      LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[+($5, $7)])
+        LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAggregateFunctionOfGroupByKeysNoChange">
     <Resource name="sql">
       <![CDATA[select sal, max(comm) as comm_max
@@ -51,6 +120,48 @@ LogicalProject(SAL=[$0], COMM_MAX=[$2])
   LogicalAggregate(group=[{0, 1}], COMM_MAX=[MAX($2)])
     LogicalProject(SAL=[$5], DEPTNO=[$7], COMM=[$6])
       LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysNullExpression">
+    <Resource name="sql">
+      <![CDATA[select comm, max(comm + 1) as max_plus
+from empnullables group by comm]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], MAX_PLUS=[MAX($1)])
+  LogicalProject(COMM=[$6], $f1=[+($6, 1)])
+    LogicalTableScan(table=[[CATALOG, SALES, EMPNULLABLES]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(COMM=[$0], $f1=[+($0, 1)])
+  LogicalAggregate(group=[{0}])
+    LogicalProject(COMM=[$6], $f1=[+($6, 1)])
+      LogicalTableScan(table=[[CATALOG, SALES, EMPNULLABLES]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysNullGroupKey">
+    <Resource name="sql">
+      <![CDATA[select comm, max(comm) as comm_max
+from empnullables group by comm]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], COMM_MAX=[MAX($0)])
+  LogicalProject(COMM=[$6])
+    LogicalTableScan(table=[[CATALOG, SALES, EMPNULLABLES]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(COMM=[$0], COMM0=[$0])
+  LogicalAggregate(group=[{0}])
+    LogicalProject(COMM=[$6])
+      LogicalTableScan(table=[[CATALOG, SALES, EMPNULLABLES]])
 ]]>
     </Resource>
   </TestCase>
@@ -73,6 +184,29 @@ LogicalProject(SAL=[$0], SAL_MAX=[$2], COMM_SUM=[$3])
   LogicalProject(SAL=[$0], DEPTNO=[$1], SAL0=[$0], COMM_SUM=[$2])
     LogicalAggregate(group=[{0, 1}], COMM_SUM=[SUM($2)])
       LogicalProject(SAL=[$5], DEPTNO=[$7], COMM=[$6])
+        LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateFunctionOfGroupByKeysUnaryMinus">
+    <Resource name="sql">
+      <![CDATA[select sal, max(-sal) as max_neg
+from emp group by sal, deptno]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_NEG=[$2])
+  LogicalAggregate(group=[{0, 1}], MAX_NEG=[MAX($2)])
+    LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[-($5)])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(SAL=[$0], MAX_NEG=[$2])
+  LogicalProject(SAL=[$0], DEPTNO=[$1], $f2=[-($0)])
+    LogicalAggregate(group=[{0, 1}])
+      LogicalProject(SAL=[$5], DEPTNO=[$7], $f2=[-($5)])
         LogicalTableScan(table=[[CATALOG, SALES, EMP]])
 ]]>
     </Resource>

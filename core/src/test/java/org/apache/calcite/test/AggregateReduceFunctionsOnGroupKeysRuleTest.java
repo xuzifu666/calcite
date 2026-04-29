@@ -55,10 +55,46 @@ class AggregateReduceFunctionsOnGroupKeysRuleTest {
     sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).check();
   }
 
+  @Test void testAggregateFunctionOfGroupByKeysNullExpression() {
+    String sql = "select comm, max(comm + 1) as max_plus\n"
+        + "from empnullables group by comm";
+    sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).check();
+  }
+
+  @Test void testAggregateFunctionOfGroupByKeysNullGroupKey() {
+    String sql = "select comm, max(comm) as comm_max\n"
+        + "from empnullables group by comm";
+    sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).check();
+  }
+
   @Test void testAggregateFunctionOfGroupByKeysNoChange() {
     String sql = "select sal, max(comm) as comm_max\n"
         + "from emp group by sal, deptno";
     sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).checkUnchanged();
+  }
+
+  @Test void testAggregateFunctionOfGroupByKeysDeterministicExpression() {
+    String sql = "select sal, max(sal + 1) as max_plus\n"
+        + "from emp group by sal, deptno";
+    sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).check();
+  }
+
+  @Test void testAggregateFunctionOfGroupByKeysUnaryMinus() {
+    String sql = "select sal, max(-sal) as max_neg\n"
+        + "from emp group by sal, deptno";
+    sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).check();
+  }
+
+  @Test void testAggregateFunctionOfGroupByKeysBinaryExpression() {
+    String sql = "select sal, max(sal * 2) as max_double\n"
+        + "from emp group by sal, deptno";
+    sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).check();
+  }
+
+  @Test void testAggregateFunctionOfGroupByKeysMultipleGroupKeys() {
+    String sql = "select sal, max(sal + deptno) as max_sum\n"
+        + "from emp group by sal, deptno";
+    sql(sql).withRule(AGGREGATE_REDUCE_FUNCTIONS_ON_GROUP_KEYS).check();
   }
 
   @AfterAll static void checkActualAndReferenceFiles() {
