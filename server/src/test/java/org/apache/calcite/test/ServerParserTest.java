@@ -493,10 +493,10 @@ class ServerParserTest extends SqlParserTest {
   /** Test case for
    * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
    * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
-  @Test void testCreateSqlUdfWithParameterModes() {
-    final String sql = "CREATE FUNCTION swap(IN a INT, INOUT b INT)\n"
+  @Test void testCreateSqlUdfWithConditional() {
+    final String sql = "CREATE FUNCTION max_two(a INT, b INT)\n"
         + "RETURNS INT\n"
-        + "RETURN a + b";
+        + "RETURN CASE WHEN a > b THEN a ELSE b END";
     final SqlParserFixture fixture = sql(sql);
     assertTrue(fixture.node() instanceof SqlCreateFunction);
   }

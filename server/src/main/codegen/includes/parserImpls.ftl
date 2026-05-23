@@ -424,19 +424,9 @@ private void FunctionParameter(SqlNodeList parameterList) :
 {
     final SqlIdentifier paramNameId;
     final SqlDataTypeSpec paramType;
-    final SqlFunctionParameter.ParameterMode mode;
     SqlNode defaultValue = null;
 }
 {
-    (
-        <IN> { mode = SqlFunctionParameter.ParameterMode.IN; }
-    |
-        <OUT> { mode = SqlFunctionParameter.ParameterMode.OUT; }
-    |
-        <INOUT> { mode = SqlFunctionParameter.ParameterMode.INOUT; }
-    |
-        { mode = SqlFunctionParameter.ParameterMode.IN; }
-    )
     paramNameId = SimpleIdentifier()
     paramType = DataType()
     (
@@ -446,7 +436,7 @@ private void FunctionParameter(SqlNodeList parameterList) :
         final SqlFunctionParameter param = new SqlFunctionParameter(
             paramNameId.getSimple(),
             paramType,
-            mode,
+            SqlFunctionParameter.ParameterMode.IN,
             defaultValue);
         parameterList.add(
             new SqlFunctionParameterNode(param, paramNameId.getParserPosition()));

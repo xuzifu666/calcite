@@ -45,13 +45,20 @@ public class SqlFunctionParameter {
   private final @Nullable SqlNode defaultValue;
 
   /**
-   * Enumeration of parameter modes (similar to PostgreSQL).
+   * Enumeration of parameter modes.
+   *
+   * <p>Currently, only IN mode is supported. OUT and INOUT require careful
+   * semantic design to avoid side-effect and aliasing issues in SQL's
+   * pure functional model, and are deferred to future versions.
    */
   public enum ParameterMode {
-    IN,      // Input parameter (default)
-    OUT,     // Output parameter
-    INOUT,   // Both input and output
-    VARIADIC // Variable-length input parameter
+    /** Input parameter (currently the only supported mode). */
+    IN
+
+    // Future modes (not yet implemented):
+    // OUT,     - Output-only parameters (requires mutable reference semantics)
+    // INOUT,   - Bidirectional parameters (requires careful aliasing handling)
+    // VARIADIC - Variable-length parameter lists
   }
 
   /**

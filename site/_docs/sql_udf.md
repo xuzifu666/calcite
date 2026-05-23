@@ -55,17 +55,16 @@ Where:
 ### Parameter Definition
 
 ```sql
-[ { IN | OUT | INOUT } ] parameter_name data_type [ DEFAULT default_value ]
+parameter_name data_type [ DEFAULT default_value ]
 ```
 
 Where:
-- Parameter mode (optional):
-  - `IN`: Input parameter (default)
-  - `OUT`: Output parameter
-  - `INOUT`: Both input and output
 - `parameter_name`: The name of the parameter
 - `data_type`: The SQL data type of the parameter
 - `DEFAULT default_value` (optional): A default value for the parameter
+
+**Note**: Currently, only IN parameters (input-only) are supported. OUT and INOUT 
+parameter modes are planned for future versions.
 
 ## Examples
 
@@ -141,19 +140,33 @@ RETURN x * 2;
 
 ## Parameter Modes
 
-Calcite supports the same parameter modes as PostgreSQL:
-
-- **IN (default)**: Parameter is passed to the function
-- **OUT**: Parameter is set by the function (currently limited use)
-- **INOUT**: Parameter is both passed to and returned from the function
-
-Example with parameter modes:
+Currently, Calcite SQL UDFs support only **IN** parameters (input-only):
 
 ```sql
-CREATE FUNCTION process(IN input_val INT, INOUT count INT)
+CREATE FUNCTION add(a INT, b INT)
 RETURNS INT
-RETURN input_val + count;
+RETURN a + b;
 ```
+
+All parameters are input parameters and are passed to the function.
+
+### Using Return Values for Multiple Outputs
+
+If you need to return multiple values, use a structured return type:
+
+```sql
+CREATE FUNCTION get_user_info(user_id INT)
+RETURNS ROW(name VARCHAR, age INT, email VARCHAR)
+RETURN (
+  SELECT name, age, email FROM users WHERE id = user_id
+);
+```
+
+### Future Enhancements
+
+OUT and INOUT parameter modes are planned for future versions. These require 
+careful semantic design to avoid side-effect and aliasing issues that would 
+conflict with SQL's pure functional model.
 
 ## Type Compatibility
 
@@ -168,6 +181,8 @@ including:
 
 Current limitations of SQL UDFs in Calcite:
 
+- **Only IN parameters are supported** - OUT and INOUT modes are reserved for 
+  future versions to maintain SQL's pure functional semantics
 - Function body must be a single SQL expression (no BEGIN...END blocks)
 - Recursive functions are not detected or prevented
 - TABLE return type is not yet supported (scalar functions only)
@@ -177,12 +192,15 @@ Current limitations of SQL UDFs in Calcite:
 
 Potential future improvements:
 
+- **OUT and INOUT parameters** - Requires careful semantic design to handle 
+  mutable reference semantics, aliasing, and execution order in SQL's 
+  functional model
+- **VARIADIC parameters** - Variable-length argument lists
+- **TABLE return type** - Table-valued functions (currently scalar functions only)
 - LANGUAGE clause to specify implementation language
 - DETERMINISTIC/NOT DETERMINISTIC for optimization hints
 - SECURITY DEFINER/INVOKER for permission control
-- VARIADIC parameters for variable-length argument lists
-- TABLE return type for table-valued functions
-- Complex expressions with multiple statements
+- Complex expressions with multiple statements (BEGIN...END blocks)
 
 ## Related Topics
 

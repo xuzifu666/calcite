@@ -84,6 +84,14 @@ public class SqlUdfValidator {
             "Invalid parameter at position " + index + ": expected SqlFunctionParameter");
       }
 
+      // Currently only IN mode is supported
+      if (param.getMode() != SqlFunctionParameter.ParameterMode.IN) {
+        throw new IllegalArgumentException(
+            "Parameter at position " + index + " uses unsupported mode '"
+                + param.getMode() + "'. Currently only IN parameters are supported. "
+                + "OUT and INOUT parameters will be implemented in a future version.");
+      }
+
       // Check parameter name uniqueness
       if (param.getParamName() != null) {
         final String name = param.getParamName().toUpperCase();
@@ -97,8 +105,7 @@ public class SqlUdfValidator {
       // Check default value positions
       if (param.hasDefaultValue()) {
         seenDefaultValue = true;
-      } else if (seenDefaultValue
-          && param.getMode() == SqlFunctionParameter.ParameterMode.IN) {
+      } else if (seenDefaultValue) {
         throw new IllegalArgumentException(
             "Parameter at position " + index
                 + " cannot have no default value after a parameter with default value");
