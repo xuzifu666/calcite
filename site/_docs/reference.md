@@ -3727,6 +3727,10 @@ createMaterializedViewStatement:
 
 createFunctionStatement:
       CREATE [ OR REPLACE ] FUNCTION [ IF NOT EXISTS ] name
+      ( [ [ { IN | OUT | INOUT } ] parameterName dataType [ DEFAULT expression ] [, ...] ] )
+      RETURNS dataType
+      RETURN expression
+  |   CREATE [ OR REPLACE ] FUNCTION [ IF NOT EXISTS ] name
       AS classNameLiteral
       [ USING  usingFile [, usingFile ]* ]
 
@@ -3766,8 +3770,13 @@ case it just renames the underlying column.
 In *columnGenerator*, if you do not specify `VIRTUAL` or `STORED` for a
 generated column, `VIRTUAL` is the default.
 
-In *createFunctionStatement* and *usingFile*, *classNameLiteral*
-and *filePathLiteral* are character literals.
+In *createFunctionStatement*:
+- *classNameLiteral* and *filePathLiteral* are character literals (for Java UDF).
+- The first form (with parameters, RETURNS, and RETURN) is for SQL UDF, which
+  allows defining scalar functions using SQL expressions.
+- The second form (with AS classNameLiteral) is for Java UDF, which refers to
+  a Java class on the classpath.
+- Parameter modes: IN (input, default), OUT (output), INOUT (both).
 
 
 #### Declaring objects for user-defined types

@@ -83,12 +83,22 @@ public class SqlDdlNodes {
         columnList, query);
   }
 
-  /** Creates a CREATE FUNCTION. */
+  /** Creates a CREATE FUNCTION (Java UDF). */
   public static SqlCreateFunction createFunction(
       SqlParserPos pos, boolean replace, boolean ifNotExists,
       SqlIdentifier name, SqlNode className, SqlNodeList usingList) {
     return new SqlCreateFunction(pos, replace, ifNotExists, name,
         className, usingList);
+  }
+
+  /** Creates a CREATE FUNCTION (SQL UDF Scalar). */
+  public static SqlCreateFunction createSqlUdf(
+      SqlParserPos pos, boolean replace, boolean ifNotExists,
+      SqlIdentifier name, SqlNodeList parameterList,
+      SqlDataTypeSpec returnType, SqlNode functionBody) {
+    return new SqlCreateFunction(pos, replace, ifNotExists, name,
+        null, null, parameterList, returnType, functionBody,
+        FunctionType.SQL_UDF_SCALAR);
   }
 
   /** Creates a DROP [ FOREIGN ] SCHEMA. */
