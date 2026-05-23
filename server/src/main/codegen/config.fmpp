@@ -32,6 +32,8 @@ data: {
       "org.apache.calcite.sql.SqlTruncate"
       "org.apache.calcite.sql.ddl.SqlCreateTableLike"
       "org.apache.calcite.sql.ddl.SqlDdlNodes"
+      "org.apache.calcite.sql.ddl.SqlFunctionParameter"
+      "org.apache.calcite.sql.ddl.SqlFunctionParameterNode"
     ]
 
     # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is
@@ -57,6 +59,8 @@ data: {
       "JAR"
       "FILE"
       "ARCHIVE"
+      "INOUT"
+      "RETURNS"
     ]
 
     # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.

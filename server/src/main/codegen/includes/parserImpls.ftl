@@ -375,24 +375,81 @@ SqlCreate SqlCreateFunction(Span s, boolean replace) :
     final SqlIdentifier id;
     final SqlNode className;
     SqlNodeList usingList = SqlNodeList.EMPTY;
+    SqlNodeList parameterList = null;
+    SqlDataTypeSpec returnType = null;
+    SqlNode functionBody = null;
 }
 {
     <FUNCTION> ifNotExists = IfNotExistsOpt()
     id = CompoundIdentifier()
-    <AS>
-    className = StringLiteral()
-    [
-        <USING> {
-            usingList = new SqlNodeList(getPos());
-        }
-        FunctionJarDef(usingList)
-        (
-            <COMMA>
+    (
+        // Java UDF syntax: AS 'className' [USING ...]
+        LOOKAHEAD(2) <AS>
+        className = StringLiteral()
+        [
+            <USING> {
+                usingList = new SqlNodeList(getPos());
+            }
             FunctionJarDef(usingList)
-        )*
-    ] {
-        return SqlDdlNodes.createFunction(s.end(this), replace, ifNotExists,
-            id, className, usingList);
+            (
+                <COMMA>
+                FunctionJarDef(usingList)
+            )*
+        ] {
+            return SqlDdlNodes.createFunction(s.end(this), replace, ifNotExists,
+                id, className, usingList);
+        }
+    |
+        // SQL UDF syntax: parameters, RETURNS, RETURN
+        <LPAREN> {
+            parameterList = new SqlNodeList(getPos());
+        }
+        [
+            FunctionParameter(parameterList)
+            (
+                <COMMA>
+                FunctionParameter(parameterList)
+            )*
+        ]
+        <RPAREN>
+        <RETURNS> returnType = DataType()
+        <RETURN> functionBody = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+            return SqlDdlNodes.createSqlUdf(s.end(this), replace, ifNotExists,
+                id, parameterList, returnType, functionBody);
+        }
+    )
+}
+
+private void FunctionParameter(SqlNodeList parameterList) :
+{
+    final SqlIdentifier paramNameId;
+    final SqlDataTypeSpec paramType;
+    final SqlFunctionParameter.ParameterMode mode;
+    SqlNode defaultValue = null;
+}
+{
+    (
+        <IN> { mode = SqlFunctionParameter.ParameterMode.IN; }
+    |
+        <OUT> { mode = SqlFunctionParameter.ParameterMode.OUT; }
+    |
+        <INOUT> { mode = SqlFunctionParameter.ParameterMode.INOUT; }
+    |
+        { mode = SqlFunctionParameter.ParameterMode.IN; }
+    )
+    paramNameId = SimpleIdentifier()
+    paramType = DataType()
+    (
+        <DEFAULT_> defaultValue = Expression(ExprContext.ACCEPT_SUB_QUERY)
+    )?
+    {
+        final SqlFunctionParameter param = new SqlFunctionParameter(
+            paramNameId.getSimple(),
+            paramType,
+            mode,
+            defaultValue);
+        parameterList.add(
+            new SqlFunctionParameterNode(param, paramNameId.getParserPosition()));
     }
 }
 

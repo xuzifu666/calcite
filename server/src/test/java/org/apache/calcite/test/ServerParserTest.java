@@ -463,4 +463,113 @@ class ServerParserTest extends SqlParserTest {
     sql(sql).ok(expected);
   }
 
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateSqlUdfSimple() {
+    final String sql = "CREATE FUNCTION my_add(a INT, b INT)\n"
+        + "RETURNS INT\n"
+        + "RETURN a + b";
+    final BiConsumer<SqlParserFixture, Function<SqlNode, Boolean>> tester = (fixture, checker) -> {
+      SqlNode node = fixture.node();
+      assertTrue(checker.apply(node));
+      assertTrue(node instanceof SqlCreateFunction);
+    };
+    final SqlParserFixture fixture = sql(sql);
+    tester.accept(fixture, n -> n instanceof SqlCreateFunction);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateSqlUdfWithDefaultValue() {
+    final String sql = "CREATE FUNCTION greet(name VARCHAR DEFAULT 'World')\n"
+        + "RETURNS VARCHAR\n"
+        + "RETURN 'Hello, ' || name";
+    final SqlParserFixture fixture = sql(sql);
+    assertTrue(fixture.node() instanceof SqlCreateFunction);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateSqlUdfWithParameterModes() {
+    final String sql = "CREATE FUNCTION swap(IN a INT, INOUT b INT)\n"
+        + "RETURNS INT\n"
+        + "RETURN a + b";
+    final SqlParserFixture fixture = sql(sql);
+    assertTrue(fixture.node() instanceof SqlCreateFunction);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateSqlUdfOrReplace() {
+    final String sql = "CREATE OR REPLACE FUNCTION double_it(x INT)\n"
+        + "RETURNS INT\n"
+        + "RETURN x * 2";
+    final SqlParserFixture fixture = sql(sql);
+    assertTrue(fixture.node() instanceof SqlCreateFunction);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateSqlUdfIfNotExists() {
+    final String sql = "CREATE FUNCTION IF NOT EXISTS max_val(x INT, y INT)\n"
+        + "RETURNS INT\n"
+        + "RETURN CASE WHEN x > y THEN x ELSE y END";
+    final SqlParserFixture fixture = sql(sql);
+    assertTrue(fixture.node() instanceof SqlCreateFunction);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateSqlUdfMultipleParameters() {
+    final String sql = "CREATE FUNCTION concat_all(a VARCHAR, b VARCHAR, c VARCHAR)\n"
+        + "RETURNS VARCHAR\n"
+        + "RETURN a || b || c";
+    final SqlParserFixture fixture = sql(sql);
+    assertTrue(fixture.node() instanceof SqlCreateFunction);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateSqlUdfComplexExpression() {
+    final String sql = "CREATE FUNCTION calculate(p INT, q INT)\n"
+        + "RETURNS INT\n"
+        + "RETURN (p + q) * (p - q) / 2";
+    final SqlParserFixture fixture = sql(sql);
+    assertTrue(fixture.node() instanceof SqlCreateFunction);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateJavaUdfBackwardCompatibility() {
+    final String sql = "CREATE FUNCTION F AS 'a.b'";
+    sql(sql)
+        .ok("CREATE FUNCTION `F` AS 'a.b'");
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7545">[CALCITE-7545]
+   * Support SQL User-Defined Functions (SQL UDF) with CREATE FUNCTION Syntax</a>. */
+  @Test void testCreateJavaUdfWithUsing() {
+    final String sql = "create or replace function if not exists x.udf\n"
+        + " as 'org.apache.calcite.udf.TableFun.demoUdf'\n"
+        + "using jar 'file:/path/udf/udf-0.0.1-SNAPSHOT.jar',\n"
+        + " jar 'file:/path/udf/udf2-0.0.1-SNAPSHOT.jar',\n"
+        + " file 'file:/path/udf/logback.xml'";
+    final String expected = "CREATE OR REPLACE FUNCTION"
+        + " IF NOT EXISTS `X`.`UDF`"
+        + " AS 'org.apache.calcite.udf.TableFun.demoUdf'"
+        + " USING JAR 'file:/path/udf/udf-0.0.1-SNAPSHOT.jar',"
+        + " JAR 'file:/path/udf/udf2-0.0.1-SNAPSHOT.jar',"
+        + " FILE 'file:/path/udf/logback.xml'";
+    sql(sql).ok(expected);
+  }
+
 }
