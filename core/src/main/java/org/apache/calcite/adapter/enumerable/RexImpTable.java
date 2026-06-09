@@ -131,6 +131,7 @@ import static org.apache.calcite.linq4j.tree.ExpressionType.SubtractChecked;
 import static org.apache.calcite.linq4j.tree.ExpressionType.UnaryPlus;
 import static org.apache.calcite.sql.fun.SqlInternalOperators.LITERAL_AGG;
 import static org.apache.calcite.sql.fun.SqlInternalOperators.THROW_UNLESS;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.FILTER;
 import static org.apache.calcite.sql.fun.SqlLibraryOperators.ACOSD;
 import static org.apache.calcite.sql.fun.SqlLibraryOperators.ACOSH;
 import static org.apache.calcite.sql.fun.SqlLibraryOperators.AGE;
@@ -1250,6 +1251,7 @@ public class RexImpTable {
           NotJsonImplementor.of(
               new MethodImplementor(BuiltInMethod.IS_JSON_SCALAR.method,
                   NullPolicy.NONE, false)));
+      define(FILTER, new FilterImplementor());
     }
 
     /** Third step of population. */
@@ -5109,6 +5111,19 @@ public class RexImpTable {
       final Expression operand2 = argValueList.get(2);
       return Expressions.call(BuiltInMethod.REPLACE.method,
           operand0, operand1, operand2, Expressions.constant(isCaseSensitive));
+    }
+  }
+
+  private static class FilterImplementor extends AbstractRexCallImplementor {
+    FilterImplementor() {
+      super("filter", NullPolicy.NONE, false);
+    }
+
+    @Override Expression implementSafe(RexToLixTranslator translator, RexCall call,
+        List<Expression> argValueList) {
+      final Expression value = argValueList.get(0);
+      final Expression condition = argValueList.get(1);
+      return Expressions.condition(condition, value, NULL_EXPR);
     }
   }
 }
