@@ -28,10 +28,12 @@ import org.apache.calcite.sql.SqlDateLiteral;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlTimeLiteral;
 import org.apache.calcite.sql.SqlTimestampLiteral;
 import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.SqlWindow;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.fun.SqlFloorFunction;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
@@ -216,9 +218,90 @@ public class OracleSqlDialect extends SqlDialect {
               timeUnitNode.getParserPosition());
       SqlFloorFunction.unparseDatetimeFunction(writer, call2, "TRUNC", true);
       break;
+    case OVER:
+      unparseOver(writer, call, leftPrec, rightPrec);
+      break;
     default:
       super.unparseCall(writer, call, leftPrec, rightPrec);
     }
+  }
+
+  private void unparseOver(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+    call.operand(0).unparse(writer, leftPrec, rightPrec);
+    writer.keyword("OVER");
+    final SqlNode windowNode = call.operand(1);
+    if (windowNode instanceof SqlWindow) {
+      unparseWindow(writer, (SqlWindow) windowNode, leftPrec, rightPrec);
+    } else {
+      windowNode.unparse(writer, leftPrec, rightPrec);
+    }
+  }
+
+  private void unparseWindow(SqlWriter writer, SqlWindow window, int leftPrec, int rightPrec) {
+    final SqlWriter.Frame frame =
+        writer.startList(SqlWriter.FrameTypeEnum.WINDOW, "(", ")");
+    if (window.getRefName() != null) {
+      window.getRefName().unparse(writer, 0, 0);
+    }
+    final SqlNodeList partitionList = window.getPartitionList();
+    if (!partitionList.isEmpty()) {
+      writer.sep("PARTITION BY");
+      final SqlWriter.Frame partitionFrame = writer.startList("", "");
+      partitionList.unparse(writer, 0, 0);
+      writer.endList(partitionFrame);
+    }
+    final SqlNodeList orderList = window.getOrderList();
+    if (!orderList.isEmpty()) {
+      writer.sep("ORDER BY");
+      final SqlWriter.Frame orderFrame = writer.startList("", "");
+      orderList.unparse(writer, 0, 0);
+      writer.endList(orderFrame);
+    }
+    SqlNode lowerBound = window.getLowerBound();
+    SqlNode upperBound = window.getUpperBound();
+    SqlLiteral exclude = window.getExclude();
+
+    // Oracle requires ORDER BY when using explicit frame specification.
+    // Omit frame specification when:
+    // 1. UNBOUNDED RANGE without ORDER BY/PARTITION BY
+    // 2. UNBOUNDED RANGE with PARTITION BY but no ORDER BY
+    final boolean isUnboundedRangeWithoutOrder = !window.isRows()
+        && orderList.isEmpty()
+        && lowerBound != null
+        && upperBound != null
+        && SqlWindow.isUnboundedPreceding(lowerBound)
+        && SqlWindow.isUnboundedFollowing(upperBound);
+
+    if (!isUnboundedRangeWithoutOrder) {
+      // Output frame specification only when it's valid for Oracle
+      if (lowerBound == null) {
+        // No frame specification
+      } else if (upperBound == null) {
+        if (window.isRows()) {
+          writer.sep("ROWS");
+        } else {
+          writer.sep("RANGE");
+        }
+        lowerBound.unparse(writer, 0, 0);
+        if (!SqlWindow.isExcludeNoOthers(exclude)) {
+          exclude.unparse(writer, 0, 0);
+        }
+      } else {
+        if (window.isRows()) {
+          writer.sep("ROWS BETWEEN");
+        } else {
+          writer.sep("RANGE BETWEEN");
+        }
+        lowerBound.unparse(writer, 0, 0);
+        writer.keyword("AND");
+        upperBound.unparse(writer, 0, 0);
+        if (!SqlWindow.isExcludeNoOthers(exclude)) {
+          exclude.unparse(writer, 0, 0);
+        }
+      }
+    }
+
+    writer.endList(frame);
   }
 
   @Override public void unparseOffsetFetch(SqlWriter writer, @Nullable SqlNode offset,

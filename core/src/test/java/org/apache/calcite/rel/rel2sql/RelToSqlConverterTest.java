@@ -11012,9 +11012,9 @@ class RelToSqlConverterTest {
     // Oracle does support nested aggregations
     String oracle =
         "SELECT SUM(CASE WHEN (COUNT(\"salary\") OVER "
-        + "(PARTITION BY \"first_name\" RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)) > 0 "
+        + "(PARTITION BY \"first_name\")) > 0 "
         + "THEN SUM(\"salary\") OVER "
-        + "(PARTITION BY \"first_name\" RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) "
+        + "(PARTITION BY \"first_name\") "
         + "ELSE 0.0000 END)\n"
         + "FROM \"foodmart\".\"employee\"";
     sql(query).withOracle().ok(oracle);
@@ -12306,5 +12306,53 @@ class RelToSqlConverterTest {
         + "FROM `foodmart`.`product`";
     sql(query).withLibrary(SqlLibrary.HIVE).withHive().ok(expectedHive);
     sql(query).withLibrary(SqlLibrary.SPARK).withSpark().ok(expectedSpark);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7100">[CALCITE-7100]
+   * Invalid unparse for OVER() in OracleDialect</a>. */
+  @Test void testWindowFrameOracleUnboundedRange() {
+    final String query = "select sum(count(*)) over() from \"employee\"";
+    final String expectedOracle = "SELECT SUM(COUNT(*)) OVER ()\n"
+        + "FROM \"foodmart\".\"employee\"";
+    sql(query).withOracle().ok(expectedOracle);
+  }
+
+  @Test void testWindowFrameOracleWithPartitionByUnbounded() {
+    // With PARTITION BY but no ORDER BY, no explicit frame is added by default in Calcite
+    // This should generate OVER (PARTITION BY ...) without frame specification
+    final String query = "select sum(\"salary\") over(partition by \"department_id\") from \"employee\"";
+    sql(query).withOracle().ok(
+        "SELECT SUM(\"salary\") OVER (PARTITION BY \"department_id\")\n"
+            + "FROM \"foodmart\".\"employee\"");
+  }
+
+  @Test void testWindowFrameOracleWithOrderByUnbounded() {
+    // With ORDER BY, Calcite adds default frame: RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    // This is valid in Oracle because ORDER BY is present
+    final String query = "select sum(\"salary\") over(order by \"hire_date\") from \"employee\"";
+    sql(query).withOracle().ok(
+        "SELECT SUM(\"salary\") OVER (ORDER BY \"hire_date\" RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\n"
+            + "FROM \"foodmart\".\"employee\"");
+  }
+
+  @Test void testWindowFrameOracleRowsWithOrderBy() {
+    // ROWS with ORDER BY should work normally in Oracle
+    final String query = "select sum(\"salary\") over(order by \"hire_date\" rows between 5 preceding and current row) from \"employee\"";
+    sql(query).withOracle().ok(
+        "SELECT CASE WHEN (COUNT(\"salary\") OVER (ORDER BY \"hire_date\" ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)) > 0"
+            + " THEN CAST(SUM(\"salary\") OVER (ORDER BY \"hire_date\" ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)"
+            + " AS DECIMAL(19, 4)) ELSE NULL END\n"
+            + "FROM \"foodmart\".\"employee\"");
+  }
+
+  @Test void testWindowFrameOraclePartitionAndOrderBy() {
+    // PARTITION BY with ORDER BY and frame should work
+    final String query = "select sum(\"salary\") over(partition by \"department_id\" order by \"hire_date\" rows between 3 preceding and current row) from \"employee\"";
+    sql(query).withOracle().ok(
+        "SELECT CASE WHEN (COUNT(\"salary\") OVER (PARTITION BY \"department_id\" ORDER BY \"hire_date\" ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)) > 0"
+            + " THEN CAST(SUM(\"salary\") OVER (PARTITION BY \"department_id\" ORDER BY \"hire_date\" ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)"
+            + " AS DECIMAL(19, 4)) ELSE NULL END\n"
+            + "FROM \"foodmart\".\"employee\"");
   }
 }
