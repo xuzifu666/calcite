@@ -1038,5 +1038,24 @@ public interface SqlValidator {
     default Config withSqlConformance(SqlConformance conformance) {
       return withConformance(conformance);
     }
+
+    /**
+     * Returns whether aggregate functions without explicit aliases should be
+     * assigned standardized column names (EXPR$0, EXPR$1, etc.) for consistency
+     * across different SQL dialects. Default is false.
+     *
+     * <p>When enabled, queries like {@code SELECT AVG(x) FROM t} will have the
+     * column named {@code EXPR$0} instead of the database-specific default name
+     * like {@code AVG}.
+     */
+    @Value.Default default boolean normalizeAggregateColumnNames() {
+      return false;
+    }
+
+    /**
+     * Sets whether aggregate functions without explicit aliases should be
+     * assigned standardized column names.
+     */
+    Config withNormalizeAggregateColumnNames(boolean normalize);
   }
 }

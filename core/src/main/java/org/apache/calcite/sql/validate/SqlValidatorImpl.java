@@ -501,25 +501,67 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             SqlStdOperatorTable.ANY_VALUE.createCall(expanded.getParserPosition(), expanded);
       }
     }
-    final String alias =
-        SqlValidatorUtil.alias(selectItem, aliases.size());
+    String finalAlias;
+    String alias;
+
+    // Determine the alias for this select item.
+    // If normalizeAggregateColumnNames is enabled and this is an aggregate
+    // without an explicit alias, use a standardized name (EXPR$N).
+    // Otherwise, derive the natural alias.
+    if (config.normalizeAggregateColumnNames()) {
+      final SqlNode stripNode = stripAs(selectItem);
+      if (stripNode instanceof SqlCall) {
+        final SqlCall call = (SqlCall) stripNode;
+        final SqlOperator op = call.getOperator();
+        if (op.isAggregator() && !op.requiresOver()) {
+          // Check if the original select item has an explicit alias
+          final @Nullable String originalAlias = SqlValidatorUtil.alias(selectItem);
+          if (originalAlias == null) {
+            // No explicit alias on the original aggregate function.
+            // Use a standardized name for consistency across databases.
+            alias = SqlUtil.deriveAliasFromOrdinal(aliases.size());
+            finalAlias = alias;
+          } else {
+            // Explicit alias provided, use it.
+            alias = originalAlias;
+            finalAlias = alias;
+          }
+        } else {
+          // Not an aggregate function, derive natural alias.
+          alias = SqlValidatorUtil.alias(selectItem, aliases.size());
+          finalAlias = alias;
+        }
+      } else {
+        // Not a call, derive natural alias.
+        alias = SqlValidatorUtil.alias(selectItem, aliases.size());
+        finalAlias = alias;
+      }
+    } else {
+      // normalizeAggregateColumnNames is disabled, always use natural alias.
+      alias = SqlValidatorUtil.alias(selectItem);
+      if (alias == null) {
+        // No natural alias found, fall back to EXPR$N
+        alias = SqlUtil.deriveAliasFromOrdinal(aliases.size());
+      }
+      finalAlias = alias;
+    }
 
     // If expansion has altered the natural alias, supply an explicit 'AS'.
     if (expanded != selectItem) {
       String newAlias =
           SqlValidatorUtil.alias(expanded, aliases.size());
-      if (!Objects.equals(newAlias, alias)) {
+      if (!Objects.equals(newAlias, finalAlias)) {
         expanded =
             SqlStdOperatorTable.AS.createCall(
                 selectItem.getParserPosition(),
                 expanded,
-                new SqlIdentifier(alias, SqlParserPos.ZERO));
+                new SqlIdentifier(finalAlias, SqlParserPos.ZERO));
         deriveTypeImpl(selectScope, expanded);
       }
     }
 
     selectItems.add(expanded);
-    aliases.add(alias);
+    aliases.add(finalAlias);
 
     inferUnknownTypes(targetType, selectScope, expanded);
 
@@ -535,7 +577,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
       type = requireNonNull(selectScope.nullifyType(stripAs(expanded), type));
     }
     setValidatedNodeType(expanded, type);
-    fields.add(alias, type);
+    fields.add(finalAlias, type);
     return false;
   }
 
