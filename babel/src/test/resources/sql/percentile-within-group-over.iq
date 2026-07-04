@@ -1,0 +1,62 @@
+# percentile-within-group-over.iq - WITHIN GROUP (ORDER BY) OVER (PARTITION BY)
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to you under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Tests for the non-standard (Oracle) syntax that lets an inverse distribution
+# function such as PERCENTILE_CONT/PERCENTILE_DISC combine a
+# "WITHIN GROUP (ORDER BY ...)" sort key with an "OVER (...)" clause, so that it
+# behaves as an analytic (window) function. The WITHIN GROUP order key becomes
+# the window's ORDER BY, and the function is planned as a window aggregate. This
+# syntax is enabled by the BABEL conformance
+# (SqlConformance.allowWithinGroupOverAggregate).
+#
+!use scott-babel
+!set outputformat mysql
+
+# PERCENTILE_CONT as an analytic function, partitioned by deptno. The WITHIN
+# GROUP sort key (SAL) is planned as the window ORDER BY of PERCENTILE_CONT.
+select deptno,
+    percentile_cont(0.5) within group (order by sal)
+        over (partition by deptno) as median_cont
+from emp;
+EnumerableCalc(expr#0..2=[{inputs}], DEPTNO=[$t1], MEDIAN_CONT=[$t2])
+  EnumerableWindow(window#0=[window(partition {1} order by [0] aggs [PERCENTILE_CONT($2)])], constants=[[0.5:DECIMAL(2, 1)]])
+    EnumerableCalc(expr#0..7=[{inputs}], SAL=[$t5], DEPTNO=[$t7])
+      EnumerableTableScan(table=[[scott, EMP]])
+!plan
+
+# PERCENTILE_DISC as an analytic function, partitioned by deptno.
+select deptno,
+    percentile_disc(0.5) within group (order by sal)
+        over (partition by deptno) as median_disc
+from emp;
+EnumerableCalc(expr#0..2=[{inputs}], DEPTNO=[$t1], MEDIAN_DISC=[$t2])
+  EnumerableWindow(window#0=[window(partition {1} order by [0] aggs [PERCENTILE_DISC($2)])], constants=[[0.5:DECIMAL(2, 1)]])
+    EnumerableCalc(expr#0..7=[{inputs}], SAL=[$t5], DEPTNO=[$t7])
+      EnumerableTableScan(table=[[scott, EMP]])
+!plan
+
+# Without a partition: percentile is computed over the whole input.
+select
+    percentile_cont(0.5) within group (order by sal) over () as median_cont
+from emp;
+EnumerableCalc(expr#0..1=[{inputs}], MEDIAN_CONT=[$t1])
+  EnumerableWindow(window#0=[window(order by [0] aggs [PERCENTILE_CONT($1)])], constants=[[0.5:DECIMAL(2, 1)]])
+    EnumerableCalc(expr#0..7=[{inputs}], SAL=[$t5])
+      EnumerableTableScan(table=[[scott, EMP]])
+!plan
+
+# End percentile-within-group-over.iq

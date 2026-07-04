@@ -2520,6 +2520,15 @@ public class SqlToRelConverter {
     default:
       break;
     }
+    // "agg WITHIN GROUP (ORDER BY ...) OVER (...)": the WITHIN GROUP sort key
+    // (used by inverse distribution functions such as PERCENTILE_CONT/DISC) is
+    // carried as the window's ORDER BY. Oracle forbids ORDER BY inside the OVER
+    // clause for these functions, so the window's own order list is empty here.
+    @Nullable SqlNodeList groupOrderList = null;
+    if (aggCall.getKind() == SqlKind.WITHIN_GROUP) {
+      groupOrderList = aggCall.operand(1);
+      aggCall = aggCall.operand(0);
+    }
     if (filter != null) {
       final SqlOperator op = aggCall.getOperator();
       if (op instanceof SqlAggFunction
@@ -2544,7 +2553,10 @@ public class SqlToRelConverter {
     SqlNode sqlLowerBound = window.getLowerBound();
     SqlNode sqlUpperBound = window.getUpperBound();
     boolean rows = window.isRows();
-    SqlNodeList orderList = window.getOrderList();
+    // For "agg WITHIN GROUP (ORDER BY ...) OVER (...)", the sort key comes from
+    // the WITHIN GROUP clause rather than the window's own (empty) ORDER BY.
+    SqlNodeList orderList =
+        groupOrderList != null ? groupOrderList : window.getOrderList();
 
     if (!aggCall.getOperator().allowsFraming()) {
       // If the operator does not allow framing, bracketing is implicitly
