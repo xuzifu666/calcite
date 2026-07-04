@@ -2166,6 +2166,28 @@ The *exclude* clause can be one of:
 `DISTINCT`, `FILTER` and `WITHIN GROUP` are as described for aggregate
 functions.
 
+#### WITHIN GROUP clause in window functions
+
+Combining a `WITHIN GROUP (ORDER BY ...)` clause with an `OVER` clause lets an
+inverse distribution function such as `PERCENTILE_CONT` or `PERCENTILE_DISC` be
+used as a window function, as in
+
+{% highlight sql %}
+PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY x) OVER (PARTITION BY y)
+{% endhighlight %}
+
+The `WITHIN GROUP` order key orders the function's input but does not restrict
+the window frame: the function is computed over the whole partition and the
+result is broadcast to every row of that partition. Because the sort key is
+supplied by `WITHIN GROUP`, the `OVER` clause must not contain its own
+`ORDER BY` or frame specification.
+
+This is non-standard syntax (supported by Oracle) and is only allowed under a
+conformance that returns true for
+[SqlConformance.allowWithinGroupOverAggregate()]({{ site.apiRoot }}/org/apache/calcite/sql/validate/SqlConformance.html#allowWithinGroupOverAggregate--),
+such as `BABEL`; otherwise the validator reports "OVER must be applied to
+aggregate function".
+
 #### FILTER clause in window functions
 
 When `FILTER` is used with window functions, it is applied in the following order:
