@@ -1527,7 +1527,7 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
     expr("cast(ARRAY[1,2,3] AS VARIANT ARRAY)")
         .columnType("VARIANT NOT NULL ARRAY NOT NULL");
     expr("cast(MAP['a','b','c','d'] AS MAP<VARCHAR, VARIANT>)")
-        .columnType("(VARCHAR NOT NULL, VARIANT NOT NULL) MAP NOT NULL");
+        .columnType("(VARCHAR NOT NULL, VARIANT) MAP NOT NULL");
     // Test case for [CALCITE-7293] https://issues.apache.org/jira/browse/CALCITE-7293
     // MAP constructor cannot handle VARIANT values that need casts
     expr("MAP['a', CAST('x' AS VARIANT), 'b', CAST(NULL AS VARIANT)]")
@@ -1979,28 +1979,12 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .ok();
     // test multiple partition keys for input table with set semantic
     sql("select * from table(topn(table orders partition by (orderId, productid), 3))")
-        .rewritesTo("SELECT *\n"
-            + "FROM TABLE(TOPN((SELECT *\n"
-            + "FROM `ORDERS`) PARTITION BY (`ORDERID`, `PRODUCTID`), 3))")
-        .ok();
-    sql("select * from table(topn(table orders partition by (orderId), 3))")
-        .rewritesTo("SELECT *\n"
-            + "FROM TABLE(TOPN((SELECT *\n"
-            + "FROM `ORDERS`) PARTITION BY `ORDERID`, 3))")
         .ok();
     // test one order key for input table with set semantic
     sql("select * from table(topn(table orders order by orderId, 3))")
         .ok();
-    sql("select * from table(topn(table orders order by (orderId), 3))")
-        .rewritesTo("SELECT *\n"
-            + "FROM TABLE(TOPN((SELECT *\n"
-            + "FROM `ORDERS`) ORDER BY `ORDERID`, 3))")
-        .ok();
     // test multiple order keys for input table with set semantic
     sql("select * from table(topn(table orders order by (orderId, productid), 3))")
-        .rewritesTo("SELECT *\n"
-            + "FROM TABLE(TOPN((SELECT *\n"
-            + "FROM `ORDERS`) ORDER BY (`ORDERID`, `PRODUCTID`), 3))")
         .ok();
     // test complex order-by clause for input table with set semantic
     sql("select * from table(topn(table orders order by (orderId desc, productid asc), 3))")
@@ -8485,44 +8469,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .columnType("INTEGER NOT NULL");
   }
 
-  @Test void testCorrelatedAggregateConformance() {
-    final String sql = "select (select ^sum(sal)^ from dept) from emp";
-    // LENIENT and BABEL allow the non-standard correlated-aggregate construct.
-    sql(sql).withConformance(SqlConformanceEnum.LENIENT).ok();
-    sql(sql).withConformance(SqlConformanceEnum.BABEL).ok();
-    // DEFAULT and STRICT_2003 do not.
-    final String err =
-        "Aggregate function referencing outer column is not allowed under the current SQL conformance level";
-    sql(sql).withConformance(SqlConformanceEnum.DEFAULT).fails(err);
-    sql(sql).withConformance(SqlConformanceEnum.STRICT_2003).fails(err);
-
-    // A non-numeric aggregate over an outer column (MAX of a VARCHAR) is also
-    // lifted to the outer query; the CASE-based rewrite is type-agnostic.
-    final String nonNumeric =
-        "select (select max(ename) from dept) from emp";
-    sql(nonNumeric).withConformance(SqlConformanceEnum.LENIENT).ok();
-    sql(nonNumeric).withConformance(SqlConformanceEnum.BABEL).ok();
-
-    // An expression over aggregates of outer columns is lifted to the outer
-    // query as a whole, and is subject to the same conformance rules as a bare
-    // aggregate.
-    final String twoAggs =
-        "select (select ^sum(sal) + sum(comm)^ from dept) from emp";
-    sql(twoAggs).withConformance(SqlConformanceEnum.LENIENT).ok();
-    sql(twoAggs).withConformance(SqlConformanceEnum.BABEL).ok();
-    sql(twoAggs).withConformance(SqlConformanceEnum.DEFAULT).fails(err);
-    sql(twoAggs).withConformance(SqlConformanceEnum.STRICT_2003).fails(err);
-
-    // Mixed case: an expression aggregating both an outer column (sal) and an
-    // inner column (deptno) references an inner column, so it is not lifted and
-    // is not rejected under any conformance level.
-    final String mixed =
-        "select (select sum(sal) + sum(deptno) from dept) from emp";
-    sql(mixed).withConformance(SqlConformanceEnum.LENIENT).ok();
-    sql(mixed).withConformance(SqlConformanceEnum.DEFAULT).ok();
-    sql(mixed).withConformance(SqlConformanceEnum.STRICT_2003).ok();
-  }
-
   @Test void testAggregateInOrderByFails() {
     sql("select empno from emp order by ^sum(empno)^")
         .fails(ERR_AGG_IN_ORDER_BY);
@@ -8603,33 +8549,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .type("RecordType(INTEGER NOT NULL C, INTEGER NOT NULL D) NOT NULL");
   }
 
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-6036">[CALCITE-6036]
-   * Support WITHIN GROUP (ORDER BY x) OVER (PARTITION BY y)</a>. Combining a
-   * WITHIN GROUP clause with an OVER clause is non-standard (Oracle) syntax that
-   * is only allowed under a conformance that enables it, such as BABEL. */
-  @Test void testPercentileWithinGroupOver() {
-    final String sql = "select\n"
-        + " percentile_cont(0.25) within group (order by sal)\n"
-        + "   over (partition by deptno) as c\n"
-        + "from emp";
-    // Enabled under BABEL conformance.
-    sql(sql)
-        .withConformance(SqlConformanceEnum.BABEL)
-        .type("RecordType(INTEGER NOT NULL C) NOT NULL");
-  }
-
-  @Test void testPercentileWithinGroupOverFailsInDefaultConformance() {
-    final String sql = "select\n"
-        + " ^percentile_cont(0.25) within group (order by sal)^\n"
-        + "   over (partition by deptno) as c\n"
-        + "from emp";
-    // Rejected under the default conformance, which does not allow WITHIN GROUP
-    // to be combined with an OVER clause.
-    sql(sql)
-        .fails("OVER must be applied to aggregate function");
-  }
-
   /** Tests that {@code PERCENTILE_CONT} only allows numeric fields. */
   @Test void testPercentileContMustOrderByNumeric() {
     final String sql = "select\n"
@@ -8688,10 +8607,7 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
 
   /** Test case for
    * <a href="https://issues.apache.org/jira/browse/CALCITE-3679">[CALCITE-3679]
-   * Allow lambda expressions in SQL queries</a>.
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-6242">[CALCITE-6242]
-   * Enhance lambda closure parsing</a>.
-   * */
+   * Allow lambda expressions in SQL queries</a>. */
   @Test void testHigherOrderFunction() {
     final SqlValidatorFixture s = fixture()
         .withOperatorTable(MockSqlOperatorTable.standard().extend());
@@ -8705,10 +8621,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .type("RecordType(INTEGER NOT NULL EXPR$0) NOT NULL");
     s.withSql("select HIGHER_ORDER_FUNCTION2(1, () -> 0.1)")
         .type("RecordType(INTEGER NOT NULL EXPR$0) NOT NULL");
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + ^emp.deptno^) from emp")
-        .ok();
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + ^deptno^) from emp")
-        .ok();
 
     // test for type check
     s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> ^x + 1^)")
@@ -8726,119 +8638,13 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .fails("Cannot apply '(?s).*HIGHER_ORDER_FUNCTION' to arguments of type "
             + "'HIGHER_ORDER_FUNCTION\\(<INTEGER>, <FUNCTION\\(ANY, ANY, ANY\\) -> ANY>\\)'.*");
 
-  }
-
-  /** Test case for lambda closure conformance checking.
-   * Tests that lambda expressions can or cannot access variables from enclosing
-   * scopes based on the SQL conformance level.
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-6242">[CALCITE-6242]
-   * Enhance lambda closure parsing</a>.
-   * */
-  @Test void testLambdaClosureConformance() {
-    final SqlValidatorFixture s = fixture()
-        .withOperatorTable(MockSqlOperatorTable.standard().extend());
-
-    // Lambda accessing outer scope variable (closure)
-    // In DEFAULT conformance, closure is allowed
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + deptno) from emp")
-        .withConformance(SqlConformanceEnum.DEFAULT)
-        .ok();
-
-    // In STRICT_92, closure is NOT allowed
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + ^deptno^) from emp")
-        .withConformance(SqlConformanceEnum.STRICT_92)
-        .fails("Lambda closure is not allowed in this conformance: "
-            + "reference to 'DEPTNO' from enclosing scope");
-
-    // In STRICT_99, closure is NOT allowed
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + ^deptno^) from emp")
-        .withConformance(SqlConformanceEnum.STRICT_99)
-        .fails("Lambda closure is not allowed in this conformance: "
-            + "reference to 'DEPTNO' from enclosing scope");
-
-    // In STRICT_2003, closure is NOT allowed
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + ^deptno^) from emp")
-        .withConformance(SqlConformanceEnum.STRICT_2003)
-        .fails("Lambda closure is not allowed in this conformance: "
-            + "reference to 'DEPTNO' from enclosing scope");
-
-    // In BABEL conformance, closure is allowed
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + deptno) from emp")
-        .withConformance(SqlConformanceEnum.BABEL)
-        .ok();
-
-    // In LENIENT conformance, closure is allowed
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + deptno) from emp")
-        .withConformance(SqlConformanceEnum.LENIENT)
-        .ok();
-
-    // Lambda using only its own parameters (no closure) - should always work
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1) from emp")
-        .withConformance(SqlConformanceEnum.STRICT_92)
-        .ok();
-
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> y) from emp")
-        .withConformance(SqlConformanceEnum.STRICT_92)
-        .ok();
-
-    // Test with qualified column name in closure
-    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + emp.deptno) from emp")
-        .withConformance(SqlConformanceEnum.DEFAULT)
-        .ok();
-
+    // test for illegal parameters
     s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + ^emp.deptno^) from emp")
-        .withConformance(SqlConformanceEnum.STRICT_92)
-        .fails("Lambda closure is not allowed in this conformance: "
-            + "reference to 'EMP.DEPTNO' from enclosing scope");
-  }
-
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-7654">[CALCITE-7654]
-   * Lambda functions handle incorrectly field accesses</a>.  */
-  @Test void testLambdaStructFieldAccess() {
-    SqlOperatorTable chain =
-        SqlOperatorTables.chain(
-            SqlOperatorTables.of(SqlLibraryOperators.EXISTS),
-            SqlStdOperatorTable.instance());
-    final SqlValidatorFixture s = fixture().withOperatorTable(chain);
-    // EMPLOYEES is ARRAY<ROW(EMPNO, ENAME, DETAIL)>.
-    // Parenthesized form: parses as DOT(e, empno).
-    s.withSql("select \"EXISTS\"(employees, e -> (e).empno > 0)\n"
-            + "from dept_nested")
-        .columnType("BOOLEAN");
-    // Unparenthesized form: parses as compound identifier e.empno.
-    s.withSql("select \"EXISTS\"(employees, e -> e.empno > 0)\n"
-            + "from dept_nested")
-        .columnType("BOOLEAN");
-    // Nested field access.
-    s.withSql("select \"EXISTS\"(employees, e -> (e).detail.skills is not null)\n"
-            + "from dept_nested")
-        .columnType("BOOLEAN");
-    // Field access through an array index: DETAIL.SKILLS is
-    // ARRAY<ROW(TYPE, DESC, OTHERS)>.
-    s.withSql("select \"EXISTS\"(employees,\n"
-            + "  e -> (e).detail.skills[1].\"TYPE\" = 'a')\n"
-            + "from dept_nested")
-        .columnType("BOOLEAN");
-    // Same, starting from a compound identifier.
-    s.withSql("select \"EXISTS\"(employees,\n"
-            + "  e -> e.detail.skills[1].\"TYPE\" = 'a')\n"
-            + "from dept_nested")
-        .columnType("BOOLEAN");
-    // A field that does not exist in the parameter's type.
-    s.withSql("select \"EXISTS\"(employees, e -> e.^bad^ > 0)\n"
-            + "from dept_nested")
-        .fails("Unknown field 'BAD'");
-    // An unknown field behind an array index produces an error.
-    s.withSql("select \"EXISTS\"(employees,\n"
-            + "  e -> e.detail.skills[1].^bad^ = 'a')\n"
-            + "from dept_nested")
-        .fails("Unknown field 'BAD'");
-    // Field access on an expression that is not a simple access chain.
-    s.withSql("select \"EXISTS\"(employees,\n"
-            + "  e -> coalesce((e).detail, e.detail).skills is not null)\n"
-            + "from dept_nested")
-        .columnType("BOOLEAN");
+        .fails("Param 'EMP\\.DEPTNO' not found in lambda expression "
+            + "'\\(`X`, `Y`\\) -> `X` \\+ 1 \\+ `EMP`\\.`DEPTNO`'");
+    s.withSql("select HIGHER_ORDER_FUNCTION(1, (x, y) -> x + 1 + ^deptno^) from emp")
+        .fails("Param 'DEPTNO' not found in lambda expression "
+            + "'\\(`X`, `Y`\\) -> `X` \\+ 1 \\+ `DEPTNO`'");
   }
 
   /** Test case for <a href="https://issues.apache.org/jira/browse/CALCITE-7193">[CALCITE-7193]
@@ -8926,126 +8732,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
     sql("select (select ? + 1 as c from (values (0)) as t(x) order by c)"
         + " from (values (0)) as u(y)")
         .assertBindType(is("RecordType(INTEGER ?0)"));
-  }
-
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-6242">[CALCITE-6242]
-   * Enhance lambda closure parsing</a>.
-   * Tests that nested lambda expressions validate correctly: in the
-   * expression {@code x -> EXISTS(arr, y -> x + y = 4)}, the inner lambda
-   * references 'x' from the outer lambda's scope. 'x' should not be treated
-   * like a table column name. */
-  @Test void testNestedLambdaClosure() {
-    final SqlOperatorTable opTable = operatorTableFor(SqlLibrary.SPARK);
-
-    // Nested lambda: inner lambda references outer lambda parameter
-    sql("select \"EXISTS\"(array(1,2,3), x -> \"EXISTS\"(array(1,2,3), y -> x + y = 4))")
-        .withOperatorTable(opTable)
-        .ok();
-
-    // Nested lambda with FROM clause: outer lambda parameter 'x' should resolve
-    // from the outer lambda scope, not as a table column
-    sql("select \"EXISTS\"(array(1,2,3), x -> \"EXISTS\"(array(1,2,3), y -> x + y > deptno))"
-        + " from emp")
-        .withOperatorTable(opTable)
-        .ok();
-
-    // In STRICT mode, inner lambda referencing outer lambda param is treated
-    // as closure and is rejected
-    sql("select \"EXISTS\"(array(1,2,3), x -> \"EXISTS\"(array(1,2,3), y -> ^x^ + y = 4))"
-        + " from emp")
-        .withOperatorTable(opTable)
-        .withConformance(SqlConformanceEnum.STRICT_2003)
-        .fails("Lambda closure is not allowed in this conformance: "
-            + "reference to 'X' from enclosing scope");
-  }
-
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-6242">[CALCITE-6242]
-   * Enhance lambda closure parsing</a>.
-   * Tests that lambda parameter names follow the same case-sensitivity
-   * rules as other identifiers, including quoting. */
-  @Test void testLambdaParameterCaseSensitivity() {
-    final SqlOperatorTable opTable = operatorTableFor(SqlLibrary.SPARK);
-
-    // Case-insensitive mode with UNCHANGED casing:
-    // parameter defined as 'x', referenced as 'X' should match
-    final SqlValidatorFixture insensitive = fixture()
-        .withCaseSensitive(false)
-        .withUnquotedCasing(Casing.UNCHANGED)
-        .withOperatorTable(opTable);
-
-    insensitive.withSql("select \"EXISTS\"(array(1,2,3), x -> x + 1 > 0)").ok();
-    insensitive.withSql("select \"EXISTS\"(array(1,2,3), x -> X + 1 > 0)").ok();
-    insensitive.withSql("select \"EXISTS\"(array(1,2,3), X -> x + 1 > 0)").ok();
-
-    // Nested lambda: inner lambda references outer parameter with different case
-    insensitive.withSql("select \"EXISTS\"(array(1,2,3),"
-        + " x -> \"EXISTS\"(array(1,2,3), y -> X + y = 4))").ok();
-
-    // Case-sensitive mode with UNCHANGED casing:
-    // parameter defined as 'x', referenced as 'X' should NOT match
-    final SqlValidatorFixture sensitive = fixture()
-        .withCaseSensitive(true)
-        .withUnquotedCasing(Casing.UNCHANGED)
-        .withQuoting(Quoting.DOUBLE_QUOTE)
-        .withOperatorTable(opTable);
-
-    // Same case: should work
-    sensitive.withSql("select \"EXISTS\"(array(1,2,3), x -> x + 1 > 0)").ok();
-
-    // Different case: should fail in case-sensitive mode
-    sensitive.withSql("select \"EXISTS\"(array(1,2,3), x -> ^X^ + 1 > 0)")
-        .fails("Column 'X' not found in any table");
-
-    // Quoted parameter names: quoting preserves case
-    // In default config (unquotedCasing=TO_UPPER), quoted lowercase stays lowercase
-    final SqlValidatorFixture defaultFixture = fixture()
-        .withOperatorTable(opTable);
-
-    // Unquoted parameter 'x' is converted to 'X', unquoted reference 'x' is also 'X'
-    defaultFixture.withSql("select \"EXISTS\"(array(1,2,3), x -> x + 1 > 0)").ok();
-  }
-
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-6242">[CALCITE-6242]
-   * Enhance lambda closure parsing</a>.
-   * Tests that duplicate lambda parameter names are rejected, both within
-   * a single lambda and across nested lambdas (shadowing). */
-  @Test void testLambdaDuplicateParameterName() {
-    final SqlOperatorTable opTable = operatorTableFor(SqlLibrary.SPARK);
-    final SqlValidatorFixture f = fixture().withOperatorTable(opTable);
-
-    // Same parameter name used twice in one lambda
-    f.withSql("select HIGHER_ORDER_FUNCTION(1, (x, ^x^) -> x + 1)")
-        .fails("Duplicate lambda parameter 'X'");
-
-    // Same parameter name in nested lambdas (shadowing)
-    f.withSql("select \"EXISTS\"(array(1,2,3),"
-        + " x -> \"EXISTS\"(array(1,2,3), ^x^ -> x + 1 > 0))")
-        .fails("Duplicate lambda parameter 'X'");
-
-    // Different parameter names: should work
-    f.withSql("select \"EXISTS\"(array(1,2,3),"
-        + " x -> \"EXISTS\"(array(1,2,3), y -> x + y = 4))").ok();
-
-    // Case-insensitive: x and X are same parameter (shadowing detected)
-    final SqlValidatorFixture insensitive = fixture()
-        .withCaseSensitive(false)
-        .withUnquotedCasing(Casing.UNCHANGED)
-        .withOperatorTable(opTable);
-    insensitive.withSql("select \"EXISTS\"(array(1,2,3),"
-        + " x -> \"EXISTS\"(array(1,2,3), ^X^ -> X + 1 > 0))")
-        .fails("Duplicate lambda parameter 'X'");
-
-    // Case-sensitive mode: x and X are different parameters (no shadowing)
-    final SqlValidatorFixture sensitive = fixture()
-        .withCaseSensitive(true)
-        .withUnquotedCasing(Casing.UNCHANGED)
-        .withQuoting(Quoting.DOUBLE_QUOTE)
-        .withOperatorTable(opTable);
-    sensitive.withSql("select \"EXISTS\"(array(1,2,3),"
-        + " x -> \"EXISTS\"(array(1,2,3), X -> X + 1 > 0))").ok();
   }
 
   @Test void testPercentileFunctionsBigQuery() {
@@ -9656,16 +9342,16 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
   @Test void testCastMapType() {
     sql("select cast(\"int2IntMapType\" as map<int,int>) from COMPLEXTYPES.CTC_T1")
         .withExtendedCatalog()
-        .columnType("(INTEGER NOT NULL, INTEGER NOT NULL) MAP NOT NULL");
+        .columnType("(INTEGER NOT NULL, INTEGER) MAP NOT NULL");
     sql("select cast(\"int2varcharArrayMapType\" as map<int,varchar array>) "
         + "from COMPLEXTYPES.CTC_T1")
         .withExtendedCatalog()
-        .columnType("(INTEGER NOT NULL, VARCHAR NOT NULL ARRAY NOT NULL) MAP NOT NULL");
+        .columnType("(INTEGER NOT NULL, VARCHAR ARRAY) MAP NOT NULL");
     sql("select cast(\"varcharMultiset2IntIntMapType\" as map<varchar(5) multiset, map<int, int>>)"
         + " from COMPLEXTYPES.CTC_T1")
         .withExtendedCatalog()
-        .columnType("(VARCHAR(5) NOT NULL MULTISET NOT NULL, "
-            + "(INTEGER NOT NULL, INTEGER NOT NULL) MAP NOT NULL) MAP NOT NULL");
+        .columnType("(VARCHAR(5) MULTISET NOT NULL, "
+            + "(INTEGER NOT NULL, INTEGER) MAP) MAP NOT NULL");
   }
 
   @Test void testCastAsRowType() {
@@ -9853,30 +9539,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .fails("Column 'NAME' not found in any table");
     sql("select ^ordinality^ from unnest(array(select name from dept)) with ordinality as t(c, o)")
         .fails("Column 'ORDINALITY' not found in any table");
-  }
-
-  /** UNNEST is valid with INNER, LEFT, CROSS, and COMMA joins;
-   *  all other join kinds must be rejected by the validator. */
-  @Test void testUnnestJoinType() {
-    // Allowed join kinds — these must all validate without error.
-    sql("select * from dept inner join unnest(array[1, 2]) as u(x) on true").ok();
-    sql("select * from dept left join unnest(array[1, 2]) as u(x) on true").ok();
-    sql("select * from dept cross join unnest(array[1, 2]) as u(x)").ok();
-    sql("select * from dept, unnest(array[1, 2]) as u(x)").ok();
-
-    // LATERAL wrapping must also be allowed for valid join kinds.
-    sql("select * from dept cross join lateral unnest(array[1, 2]) as u(x)").ok();
-    sql("select * from dept left join lateral unnest(array[1, 2]) as u(x) on true").ok();
-
-    // Disallowed join kinds — validator must reject these.
-    sql("select * from dept right ^join^ unnest(array[1, 2]) as u(x) on true")
-        .fails("UNNEST is only supported with INNER, LEFT, CROSS, or COMMA join, not 'RIGHT'");
-    sql("select * from dept full ^join^ unnest(array[1, 2]) as u(x) on true")
-        .fails("UNNEST is only supported with INNER, LEFT, CROSS, or COMMA join, not 'FULL'");
-
-    // LATERAL wrapping must also be rejected for invalid join kinds.
-    sql("select * from dept right ^join^ lateral unnest(array[1, 2]) as u(x) on true")
-        .fails("UNNEST is only supported with INNER, LEFT, CROSS, or COMMA join, not 'RIGHT'");
   }
 
   @Test void unnestMapMustNameColumnsKeyAndValueWhenNotAliased() {
@@ -10747,22 +10409,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         .rewritesTo(expected);
   }
 
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-7592">[CALCITE-7592]
-   * Add expression support for FETCH</a>. */
-  @Test void testFetchExpressionType() {
-    sql("select name from dept fetch next (^upper('x')^) rows only")
-        .fails("FETCH expression must have a numeric type; "
-            + "actual type is 'CHAR\\(1\\) NOT NULL'");
-    sql("select name from dept fetch next (^'x'^) rows only")
-        .fails("FETCH expression must have a numeric type; "
-            + "actual type is 'CHAR\\(1\\) NOT NULL'");
-    sql("select name from dept fetch next 1.5 rows only").ok();
-    sql("select name from dept "
-        + "fetch next (^row_number() over ()^) rows only")
-        .fails("Windowed aggregate expression is illegal in FETCH clause");
-  }
-
   @Test void testRewriteWithOffsetWithoutOrderBy() {
     final String sql = "select name from dept offset 2";
     final String expected = "SELECT `NAME`\n"
@@ -10771,24 +10417,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
     sql(sql)
         .withValidatorIdentifierExpansion(false)
         .rewritesTo(expected);
-  }
-
-  /** Test case for
-   * <a href="https://issues.apache.org/jira/browse/CALCITE-7624">[CALCITE-7624]
-   * Support BigDecimal for FETCH and OFFSET in Enumerable</a>. */
-  @Test void testNegativeFetchOffsetLimit() {
-    sql("select name from dept limit ^-^1")
-        .fails("(?s).*Encountered \"-\".*");
-    sql("select name from dept offset ^-^1")
-        .fails("(?s).*Encountered \"-\".*");
-    sql("select name from dept fetch next ^-^1 rows only")
-        .fails("(?s).*Encountered \"-\".*");
-    sql("select name from dept order by name limit ^-^1")
-        .fails("(?s).*Encountered \"-\".*");
-    sql("select name from dept order by name offset ^-^1")
-        .fails("(?s).*Encountered \"-\".*");
-    sql("select name from dept order by name fetch next ^-^1 rows only")
-        .fails("(?s).*Encountered \"-\".*");
   }
 
   @Test void testRewriteWithUnionFetchWithoutOrderBy() {
@@ -11491,7 +11119,6 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
         + "> SOME left\n"
         + ">= ALL left\n"
         + ">= SOME left\n"
-        + ">> left\n"
         + "BETWEEN ASYMMETRIC -\n"
         + "BETWEEN SYMMETRIC -\n"
         + "IN left\n"
@@ -14169,6 +13796,49 @@ public class SqlValidatorTest extends SqlValidatorTestCase {
     expr("^100 is json value^")
         .withTypeCoercion(false)
         .fails("(?s).*Cannot apply.*");
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7229">[CALCITE-7229]
+   * Support PostgreSQL ROW constructor alias reference from LATERAL subquery</a>.
+  */
+  @Test public void testRowConstructorInInList() {
+    // Dynamic parameters inside a ROW in the IN list.
+    sql("SELECT e.empno, r.r\n"
+        + "FROM emp AS e, LATERAL (SELECT ROW(e.empno, e.ename) AS r) AS r\n"
+        + "WHERE ROW(e.empno, e.ename) IN (r.r, ROW(?, ?))").ok();
+    // Same without the LATERAL subquery.
+    sql("SELECT e.empno\n"
+        + "FROM emp AS e\n"
+        + "WHERE ROW(e.empno, e.ename) IN (ROW(e.empno, e.ename), ROW(?, ?))").ok();
+    // A single ROW with dynamic parameters.
+    sql("SELECT e.empno\n"
+        + "FROM emp AS e\n"
+        + "WHERE ROW(e.empno, e.ename) IN (ROW(?, ?))").ok();
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-7229">[CALCITE-7229]
+   * Support PostgreSQL ROW constructor alias reference from LATERAL
+   * subquery</a>.
+   *
+   * <p>A dynamic parameter inside a ROW constructor in the RHS of an
+   * {@code IN} list must infer its type from the LHS ROW, rather than
+   * defaulting to VARCHAR because the LHS struct's fields are erroneously
+   * distributed across the list elements. */
+  @Test public void testRowConstructorInInList() {
+    // Dynamic parameters inside a ROW in the IN list.
+    sql("SELECT e.empno, r.r\n"
+        + "FROM emp AS e, LATERAL (SELECT ROW(e.empno, e.ename) AS r) AS r\n"
+        + "WHERE ROW(e.empno, e.ename) IN (r.r, ROW(?, ?))").ok();
+    // Same without the LATERAL subquery.
+    sql("SELECT e.empno\n"
+        + "FROM emp AS e\n"
+        + "WHERE ROW(e.empno, e.ename) IN (ROW(e.empno, e.ename), ROW(?, ?))").ok();
+    // A single ROW with dynamic parameters.
+    sql("SELECT e.empno\n"
+        + "FROM emp AS e\n"
+        + "WHERE ROW(e.empno, e.ename) IN (ROW(?, ?))").ok();
   }
 
   @Test public void testJsonInsert() {

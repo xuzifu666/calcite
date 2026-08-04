@@ -2547,30 +2547,55 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         scope = getMeasureScope(((SelectScope) scope).getNode());
       }
       inferUnknownTypes(inferredType, scope, ((SqlCall) node).operand(0));
+    } else if ((node.getKind() == SqlKind.IN || node.getKind() == SqlKind.NOT_IN)
+        && ((SqlCall) node).operand(1) instanceof SqlNodeList) {
+      // For IN/NOT IN with a value list, each element of the RHS list is a
+      // candidate value that must match the whole LHS type. If the LHS type is
+      // known, apply it to every element of the RHS list. This avoids the
+      // SqlNodeList default (below) which distributes a struct LHS's fields
+      // across the list elements: that is only correct for single-row value
+      // lists such as VALUES, and produces wrong types for
+      // "ROW(a, b) IN (ROW(?, ?), ...)".
+      final SqlCall inCall = (SqlCall) node;
+      final SqlNode left = inCall.operand(0);
+      final RelDataType leftType = deriveType(scope, left);
+      if (leftType.equals(unknownType)) {
+        // LHS type is not yet known; fall back to the generic call handling
+        // so the RHS can still be inferred as before.
+        inferUnknownTypesForCall((SqlCall) node, inferredType, scope);
+      } else {
+        for (SqlNode child : (SqlNodeList) inCall.operand(1)) {
+          inferUnknownTypes(leftType, scope, child);
+        }
+      }
     } else if (node.isA(SqlKind.QUERY)) {
       // Do not descend into subqueries. Each query (SELECT, VALUES,
       // etc.) calls inferUnknownTypes during its own validation.
     } else if (node instanceof SqlCall) {
-      final SqlCall call = (SqlCall) node;
-      final SqlOperandTypeInference operandTypeInference =
-          call.getOperator().getOperandTypeInference();
-      final SqlCallBinding callBinding = new SqlCallBinding(this, scope, call);
-      final List<SqlNode> operands = callBinding.operands();
-      final RelDataType[] operandTypes = new RelDataType[operands.size()];
-      Arrays.fill(operandTypes, unknownType);
-      // TODO:  eventually should assert(operandTypeInference != null)
-      // instead; for now just eat it
-      if (operandTypeInference != null) {
-        operandTypeInference.inferOperandTypes(
-            callBinding,
-            inferredType,
-            operandTypes);
-      }
-      for (int i = 0; i < operands.size(); ++i) {
-        final SqlNode operand = operands.get(i);
-        if (operand != null) {
-          inferUnknownTypes(operandTypes[i], scope, operand);
-        }
+      inferUnknownTypesForCall((SqlCall) node, inferredType, scope);
+    }
+  }
+
+  private void inferUnknownTypesForCall(SqlCall call,
+      RelDataType inferredType, SqlValidatorScope scope) {
+    final SqlOperandTypeInference operandTypeInference =
+        call.getOperator().getOperandTypeInference();
+    final SqlCallBinding callBinding = new SqlCallBinding(this, scope, call);
+    final List<SqlNode> operands = callBinding.operands();
+    final RelDataType[] operandTypes = new RelDataType[operands.size()];
+    Arrays.fill(operandTypes, unknownType);
+    // TODO:  eventually should assert(operandTypeInference != null)
+    // instead; for now just eat it
+    if (operandTypeInference != null) {
+      operandTypeInference.inferOperandTypes(
+          callBinding,
+          inferredType,
+          operandTypes);
+    }
+    for (int i = 0; i < operands.size(); ++i) {
+      final SqlNode operand = operands.get(i);
+      if (operand != null) {
+        inferUnknownTypes(operandTypes[i], scope, operand);
       }
     }
   }
