@@ -63,7 +63,7 @@ import static java.util.Objects.requireNonNull;
 
 /** Enumerator that reads from a CSV file.
  *
- * @param <E> Row type
+ * @param <E> Row types
  */
 public class CsvEnumerator<E> implements Enumerator<E> {
   private static final CalciteLogger LOGGER =
