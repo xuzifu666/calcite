@@ -4164,15 +4164,13 @@ LogicalDelta
     <Resource name="planExpanded">
       <![CDATA[
 LogicalProject(DEPTNO=[$9], SAL=[$7])
-  LogicalJoin(condition=[=($9, $0)], joinType=[inner])
+  LogicalJoin(condition=[=($0, $11)], joinType=[inner])
     LogicalTableScan(table=[[CATALOG, SALES, DEPT]])
-    LogicalFilter(condition=[<($5, $0)])
-      LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5], COMM=[$6], DEPTNO=[$7], SLACKER=[$8], EXPR$0=[$10])
-        LogicalJoin(condition=[=($0, $9)], joinType=[left])
+    LogicalJoin(condition=[AND(<($5, $10), =($7, $9))], joinType=[inner])
+      LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+      LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
+        LogicalProject(DEPTNO=[$7], SAL=[$5])
           LogicalTableScan(table=[[CATALOG, SALES, EMP]])
-          LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
-            LogicalProject(DEPTNO=[$7], SAL=[$5])
-              LogicalTableScan(table=[[CATALOG, SALES, EMP]])
 ]]>
     </Resource>
     <Resource name="planNotExpanded">
@@ -6563,6 +6561,52 @@ LogicalSort(offset=[?0])
 LogicalSort(offset=[+(1, ABS(-2))])
   LogicalProject(EMPNO=[$0])
     LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnClauseCorrelatedScalarSubquery">
+    <Resource name="sql">
+      <![CDATA[select *
+from dept
+left join bonus on bonus.job = (
+  select emp.job
+  from emp
+  where emp.deptno = dept.deptno
+)]]>
+    </Resource>
+    <Resource name="plan">
+      <![CDATA[
+LogicalProject(DEPTNO=[$0], NAME=[$1], ENAME=[$2], JOB=[$3], SAL=[$4], COMM=[$5])
+  LogicalJoin(condition=[=($0, $6)], joinType=[left])
+    LogicalTableScan(table=[[CATALOG, SALES, DEPT]])
+    LogicalJoin(condition=[=($1, $5)], joinType=[inner])
+      LogicalTableScan(table=[[CATALOG, SALES, BONUS]])
+      LogicalAggregate(group=[{0}], agg#0=[SINGLE_VALUE($1)])
+        LogicalProject(DEPTNO=[$7], JOB=[$2])
+          LogicalTableScan(table=[[CATALOG, SALES, EMP]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnClauseCorrelatedScalarSubqueryInner">
+    <Resource name="sql">
+      <![CDATA[select *
+from dept
+join bonus on bonus.job = (
+  select emp.job
+  from emp
+  where emp.deptno = dept.deptno
+)]]>
+    </Resource>
+    <Resource name="plan">
+      <![CDATA[
+LogicalProject(DEPTNO=[$0], NAME=[$1], ENAME=[$2], JOB=[$3], SAL=[$4], COMM=[$5])
+  LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+    LogicalTableScan(table=[[CATALOG, SALES, DEPT]])
+    LogicalJoin(condition=[=($1, $5)], joinType=[inner])
+      LogicalTableScan(table=[[CATALOG, SALES, BONUS]])
+      LogicalAggregate(group=[{0}], agg#0=[SINGLE_VALUE($1)])
+        LogicalProject(DEPTNO=[$7], JOB=[$2])
+          LogicalTableScan(table=[[CATALOG, SALES, EMP]])
 ]]>
     </Resource>
   </TestCase>
