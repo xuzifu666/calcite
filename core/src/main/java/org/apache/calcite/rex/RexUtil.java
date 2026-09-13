@@ -3020,6 +3020,12 @@ public class RexUtil {
      * appears on the left and a literal or higher-index input ref appears on
      * the right. This exploits the symmetry of comparisons to help
      * {@link #commonFactors} recognize equivalent terms.
+     *
+     * <p>Only comparisons that involve an input ref are normalized: if both
+     * operands are input refs, the lower-index one is placed on the left;
+     * if exactly one operand is an input ref, it is placed on the left.
+     * Comparisons whose operands are not input refs (for example, two
+     * CASTs) are returned unchanged.
      */
     private RexNode normalizeComparison(RexNode rex) {
       if (rex instanceof RexCall) {
