@@ -30,6 +30,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 
 /**
  * Tests for SqlCall operands' order and size match with set.
@@ -207,6 +208,35 @@ public class SqlCallOperandsTest {
     assertThat(sql, containsString("field1Value"));
     assertThat(sql.contains("internalField"), equalTo(false));
     assertThat(sql.contains("SELECT"), equalTo(false));
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-6972">[CALCITE-6972]
+   * Confusions about SqlUpdate: a scalar sub-query in the SET clause is a
+   * single source expression, and sourceSelect is not populated by the
+   * parser</a>. */
+  @Test void testSqlUpdateWithSubQueryInSetClause() throws SqlParseException {
+    final SqlUpdate sqlUpdate =
+        (SqlUpdate) SqlParser.create("UPDATE table1 AS alias "
+            + "SET column1 = (SELECT column1 FROM table2 "
+            + "WHERE column1 = 'column1Value') "
+            + "WHERE column1 = 'column1Value'")
+            .parseStmt();
+    // The sub-query is one entry of the source expression list, matched
+    // one-to-one with the target column list.
+    assertThat(sqlUpdate.getTargetColumnList(), hasSize(1));
+    assertThat(sqlUpdate.getSourceExpressionList(), hasSize(1));
+    assertThat(sqlUpdate.getSourceExpressionList().get(0).getKind(),
+        equalTo(SqlKind.SELECT));
+    // sourceSelect is not populated by the parser; the validator populates
+    // it later, and unparse ignores it.
+    assertThat(sqlUpdate.getSourceSelect(), nullValue());
+    final String sql =
+        sqlUpdate.toSqlString(c -> c.withClauseStartsLine(false)).getSql();
+    assertThat(sql, containsString("UPDATE"));
+    assertThat(sql, containsString("SET"));
+    assertThat(sql, containsString("(SELECT"));
+    assertThat(sql, containsString("WHERE"));
   }
 
   /** Test case for
